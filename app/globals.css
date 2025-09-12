@@ -11,19 +11,24 @@
   --card-foreground: oklch(0.145 0 0); /* Dark gray card text */
   --popover: oklch(1 0 0); /* White popover */
   --popover-foreground: oklch(0.145 0 0); /* Dark gray popover text */
-  --primary: oklch(0.205 0 0); /* LancheGO Blue primary color */
+  /* LancheGO blue as primary color */
+  --primary: oklch(0.5 0.2 240); /* LancheGO Blue primary color */
   --primary-foreground: oklch(0.985 0 0); /* White text on primary */
-  --secondary: oklch(0.97 0 0); /* Light yellow/warning color */
-  --secondary-foreground: oklch(0.205 0 0); /* Dark text on secondary */
+  /* Green for success/liberado as secondary */
+  --secondary: oklch(0.65 0.18 142); /* Green success color for liberado */
+  --secondary-foreground: oklch(0.985 0 0); /* White text on secondary */
   --muted: oklch(0.97 0 0); /* Light muted background */
   --muted-foreground: oklch(0.556 0 0); /* Medium gray muted text */
-  --accent: oklch(0.97 0 0); /* Green success color */
-  --accent-foreground: oklch(0.205 0 0); /* White text on accent */
-  --destructive: oklch(0.577 0.245 27.325); /* Red error color */
-  --destructive-foreground: oklch(0.577 0.245 27.325); /* White text on destructive */
+  /* LancheGO blue light as accent */
+  --accent: oklch(0.7 0.15 240); /* LancheGO Blue light accent */
+  --accent-foreground: oklch(0.985 0 0); /* White text on accent */
+  /* Red for destructive/bloqueado */
+  --destructive: oklch(0.55 0.22 25); /* Red error color for bloqueado */
+  --destructive-foreground: oklch(0.985 0 0); /* White text on destructive */
   --border: oklch(0.922 0 0); /* Light gray border */
   --input: oklch(0.922 0 0); /* Light input background */
-  --ring: oklch(0.708 0 0); /* Blue focus ring */
+  /* LancheGO blue as ring color */
+  --ring: oklch(0.5 0.2 240); /* LancheGO Blue focus ring */
   --chart-1: oklch(0.646 0.222 41.116); /* Blue chart color */
   --chart-2: oklch(0.6 0.118 184.704); /* Green chart color */
   --chart-3: oklch(0.398 0.07 227.392); /* Yellow chart color */
@@ -32,25 +37,26 @@
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
+  /* LancheGO blue for sidebar primary */
+  --sidebar-primary: oklch(0.5 0.2 240);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
 
-  /* Status colors for biometric system */
-  --status-complete: oklch(0.7 0.15 140); /* Green for complete */
+  /* Status colors for biometric system - semantically correct */
+  --status-complete: oklch(0.65 0.18 142); /* Green for complete/liberado */
   --status-partial: oklch(0.75 0.15 85); /* Yellow for partial */
-  --status-none: oklch(0.577 0.245 27.325); /* Red for none */
+  --status-none: oklch(0.55 0.22 25); /* Red for none/bloqueado */
 
-  /* LancheGO specific colors */
+  /* LancheGO specific colors - semantically correct */
   --lanchego-blue: oklch(0.5 0.2 240);
   --lanchego-blue-light: oklch(0.7 0.15 240);
   --lanchego-blue-dark: oklch(0.3 0.25 240);
-  --success-green: oklch(0.7 0.15 140);
-  --warning-yellow: oklch(0.75 0.15 85);
-  --error-red: oklch(0.577 0.245 27.325);
+  --success-green: oklch(0.65 0.18 142); /* Green for success/liberado */
+  --warning-yellow: oklch(0.75 0.15 85); /* Yellow for warning/partial */
+  --error-red: oklch(0.55 0.22 25); /* Red for error/bloqueado */
 }
 
 .dark {
@@ -138,7 +144,7 @@
   }
 }
 
-/* Added LancheGO specific utility classes */
+/* Added LancheGO specific utility classes with proper colors */
 @layer utilities {
   .text-lanchego-blue {
     color: var(--lanchego-blue);
