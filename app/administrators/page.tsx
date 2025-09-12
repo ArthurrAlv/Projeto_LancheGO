@@ -70,11 +70,11 @@ export default function ServersManagementPage() {
     const registeredCount = fingerprints.filter(Boolean).length
 
     if (registeredCount === 0) {
-      return { status: "Inativo", variant: "secondary" as const, showAlert: false }
+      return { status: "Inativo", variant: "destructive" as const, showAlert: false }
     } else if (registeredCount === 1) {
-      return { status: "Ativo", variant: "default" as const, showAlert: true }
+      return { status: "Ativo", variant: "secondary" as const, showAlert: true }
     } else {
-      return { status: "Ativo", variant: "default" as const, showAlert: false }
+      return { status: "Ativo", variant: "secondary" as const, showAlert: false }
     }
   }
 
@@ -151,7 +151,7 @@ export default function ServersManagementPage() {
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold text-foreground">Gestão de Servidores</h1>
-          <Button onClick={handleAddServer} className="bg-primary hover:bg-primary/90">
+          <Button onClick={handleAddServer} className="bg-secondary hover:bg-secondary/90">
             <Plus className="h-4 w-4 mr-2" />
             Adicionar Novo Servidor
           </Button>
@@ -191,8 +191,8 @@ export default function ServersManagementPage() {
                           </Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button variant="outline" size="sm">
-                                <Trash2 className="h-4 w-4" />
+                              <Button variant="outline" size="sm" className="hover:bg-red-500/80">
+                                <Trash2 className="h-4 w-4"/>
                               </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
@@ -205,7 +205,10 @@ export default function ServersManagementPage() {
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDeleteServer(server.id)}>
+                                <AlertDialogAction 
+                                  onClick={() => handleDeleteServer(server.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
                                   Excluir
                                 </AlertDialogAction>
                               </AlertDialogFooter>
@@ -302,7 +305,7 @@ export default function ServersManagementPage() {
                               size="sm"
                               variant="outline"
                               onClick={() => handleDeleteFingerprint(index)}
-                              className="text-destructive hover:text-destructive"
+                              className="text-destructive hover:text-accent-foreground hover:bg-red-500/90"
                             >
                               Excluir
                             </Button>
@@ -324,7 +327,7 @@ export default function ServersManagementPage() {
                 <Button variant="outline" onClick={() => setIsModalOpen(false)}>
                   Cancelar
                 </Button>
-                <Button onClick={handleSaveServer}>{editingServer ? "Salvar Alterações" : "Adicionar Servidor"}</Button>
+                <Button onClick={handleSaveServer} className="bg-secondary hover:bg-secondary/90">{editingServer ? "Salvar Alterações" : "Adicionar Servidor"}</Button>
               </div>
             </div>
           </DialogContent>

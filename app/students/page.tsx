@@ -188,7 +188,7 @@ export default function StudentsPage() {
 
           <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
             <DialogTrigger asChild>
-              <Button onClick={handleAddStudent} className="bg-primary hover:bg-primary/90">
+              <Button onClick={handleAddStudent} className="bg-secondary hover:bg-secondary/90">
                 <Plus className="h-4 w-4 mr-2" />
                 Adicionar Novo Aluno
               </Button>
@@ -291,7 +291,7 @@ export default function StudentsPage() {
         </div>
 
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="px-6">
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex-1">
                 <div className="relative">
@@ -360,7 +360,7 @@ export default function StudentsPage() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="text-destructive hover:text-destructive bg-transparent"
+                                className="text-destructive hover:text-accent-foreground bg-transparent hover:bg-red-500/90"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>

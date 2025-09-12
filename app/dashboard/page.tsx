@@ -201,7 +201,7 @@ export default function DashboardPage() {
             <p className="text-muted-foreground">Sistema de Controle Biométrico</p>
           </div>
           <div className="flex items-center gap-6">
-            <div className="text-right">
+            <div className="text-left">
               <p className="text-sm text-muted-foreground">Data: {currentTime.toLocaleDateString("pt-BR")}</p>
               <p className="text-sm text-muted-foreground">Horário: {currentTime.toLocaleTimeString("pt-BR")}</p>
             </div>

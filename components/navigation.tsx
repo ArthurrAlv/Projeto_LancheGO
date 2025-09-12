@@ -57,7 +57,7 @@ export function Navigation() {
             </div>
           </div>
 
-          <Button variant="outline" size="sm" asChild>
+          <Button variant="outline" size="sm" asChild className="hover:bg-red-500/80">
             <Link href="/">
               <LogOut className="h-4 w-4 mr-2" />
               Sair
