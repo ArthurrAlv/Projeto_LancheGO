@@ -85,9 +85,9 @@ export default function StudentsPage() {
     if (!student.digital1 && !student.digital2) {
       return { status: "Sem Digital", variant: "destructive" as const }
     } else if (student.digital1 && student.digital2) {
-      return { status: "Completo", variant: "default" as const }
+      return { status: "Completo", variant: "secondary" as const }
     } else {
-      return { status: "Parcial", variant: "secondary" as const }
+      return { status: "Parcial", variant: "outline" as const }
     }
   }
 

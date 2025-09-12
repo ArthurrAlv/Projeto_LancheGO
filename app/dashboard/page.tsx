@@ -99,37 +99,6 @@ export default function DashboardPage() {
     switch (biometricState) {
       case "success":
         return (
-          <Card className="border-accent bg-accent/5">
-            <CardContent className="p-8 text-center space-y-6">
-              <Avatar className="w-32 h-32 mx-auto">
-                <AvatarImage src="/student-avatar.png" />
-                <AvatarFallback className="text-2xl">
-                  {currentStudent?.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")
-                    .slice(0, 2)}
-                </AvatarFallback>
-              </Avatar>
-
-              <div className="space-y-2">
-                <h2 className="text-2xl font-bold text-foreground">{currentStudent?.name}</h2>
-                <p className="text-muted-foreground">Matrícula: {currentStudent?.matricula}</p>
-                <p className="text-muted-foreground">Turma: {currentStudent?.turma}</p>
-              </div>
-
-              <div className="bg-accent text-accent-foreground py-4 px-6 rounded-lg">
-                <div className="flex items-center justify-center space-x-2">
-                  <CheckCircle className="h-6 w-6" />
-                  <span className="font-bold text-lg">LANCHE LIBERADO</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )
-
-      case "warning":
-        return (
           <Card className="border-secondary bg-secondary/5">
             <CardContent className="p-8 text-center space-y-6">
               <Avatar className="w-32 h-32 mx-auto">
@@ -150,6 +119,37 @@ export default function DashboardPage() {
               </div>
 
               <div className="bg-secondary text-secondary-foreground py-4 px-6 rounded-lg">
+                <div className="flex items-center justify-center space-x-2">
+                  <CheckCircle className="h-6 w-6" />
+                  <span className="font-bold text-lg">LANCHE LIBERADO</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )
+
+      case "warning":
+        return (
+          <Card className="border-yellow-500 bg-yellow-50">
+            <CardContent className="p-8 text-center space-y-6">
+              <Avatar className="w-32 h-32 mx-auto">
+                <AvatarImage src="/student-avatar.png" />
+                <AvatarFallback className="text-2xl">
+                  {currentStudent?.name
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .slice(0, 2)}
+                </AvatarFallback>
+              </Avatar>
+
+              <div className="space-y-2">
+                <h2 className="text-2xl font-bold text-foreground">{currentStudent?.name}</h2>
+                <p className="text-muted-foreground">Matrícula: {currentStudent?.matricula}</p>
+                <p className="text-muted-foreground">Turma: {currentStudent?.turma}</p>
+              </div>
+
+              <div className="bg-yellow-500 text-white py-4 px-6 rounded-lg">
                 <div className="flex items-center justify-center space-x-2">
                   <Clock className="h-6 w-6" />
                   <span className="font-bold text-lg">ALUNO JÁ RETIROU O LANCHE HOJE</span>
