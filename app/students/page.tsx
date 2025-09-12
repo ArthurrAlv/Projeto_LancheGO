@@ -281,7 +281,7 @@ export default function StudentsPage() {
                   <Button variant="outline" onClick={() => setIsModalOpen(false)} className="flex-1">
                     Cancelar
                   </Button>
-                  <Button onClick={handleSaveStudent} className="flex-1 bg-primary hover:bg-primary/90">
+                  <Button onClick={handleSaveStudent} className="flex-1 bg-primary hover:bg-primary">
                     Salvar Aluno
                   </Button>
                 </div>

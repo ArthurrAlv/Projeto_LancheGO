@@ -100,7 +100,7 @@ export default function DashboardPage() {
       case "success":
         return (
           <Card className="border-secondary bg-secondary/5">
-            <CardContent className="p-8 text-center space-y-6">
+            <CardContent className="p-8 text-center space-y-6 min-h-[400px] max-h-[500px]">
               <Avatar className="w-32 h-32 mx-auto">
                 <AvatarImage src="/student-avatar.png" />
                 <AvatarFallback className="text-2xl">
@@ -131,7 +131,7 @@ export default function DashboardPage() {
       case "warning":
         return (
           <Card className="border-yellow-500 bg-yellow-50">
-            <CardContent className="p-8 text-center space-y-6">
+            <CardContent className="p-8 text-center space-y-6 min-h-[400px] max-h-[500px]">
               <Avatar className="w-32 h-32 mx-auto">
                 <AvatarImage src="/student-avatar.png" />
                 <AvatarFallback className="text-2xl">
@@ -162,7 +162,7 @@ export default function DashboardPage() {
       case "error":
         return (
           <Card className="border-destructive bg-destructive/5">
-            <CardContent className="p-8 text-center space-y-6">
+            <CardContent className="p-8 text-center space-y-6 h-full flex flex-col justify-center min-h-[400px] max-h-[500px]">
               <XCircle className="w-24 h-24 mx-auto text-destructive" />
 
               <div className="space-y-2">
@@ -178,7 +178,7 @@ export default function DashboardPage() {
       default:
         return (
           <Card>
-            <CardContent className="p-8 text-center space-y-6">
+            <CardContent className="p-8 text-center space-y-6 h-full flex flex-col justify-center min-h-[400px] max-h-[500px]">
               <Sandwich className="w-24 h-24 mx-auto text-muted-foreground" />
               <h2 className="text-2xl text-muted-foreground">Aguardando identificação do aluno...</h2>
             </CardContent>
