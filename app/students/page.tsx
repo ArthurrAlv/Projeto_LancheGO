@@ -179,6 +179,19 @@ export default function StudentsPage() {
     }
   }
 
+  // --- status strings padronizadas (evita typos) ---
+  const STATUS_NONE = "Nenhuma digital cadastrada"
+  const STATUS_REGISTERED = "Digital cadastrada"
+  const STATUS_READING = "Aguardando leitura no sensor..."
+
+  // --- classes de cor dinamicamente associadas ao status ---
+  const getStatusClass = (status: string) => {
+    if (status === STATUS_NONE) return "text-red-500"        // nenhuma digital
+    if (status === STATUS_REGISTERED) return "text-green-600" // já cadastrada
+    if (status === STATUS_READING) return "text-blue-500 animate-pulse" // em leitura
+    return "text-muted-foreground"
+  }
+
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -244,7 +257,10 @@ export default function StudentsPage() {
                     <div className="flex items-center justify-between">
                       <div className="space-y-1">
                         <span className="text-sm font-medium">Digital 1:</span>
-                        <p className="text-xs text-muted-foreground">Status: {digital1Status}</p>
+                        <p className="text-xs">
+                          <span className="text-muted-foreground">Status:</span>{" "}
+                          <span className={getStatusClass(digital1Status)}>{digital1Status}</span>
+                        </p>
                       </div>
                       <Button
                         size="sm"
@@ -261,7 +277,10 @@ export default function StudentsPage() {
                     <div className="flex items-center justify-between">
                       <div className="space-y-1">
                         <span className="text-sm font-medium">Digital 2:</span>
-                        <p className="text-xs text-muted-foreground">Status: {digital2Status}</p>
+                        <p className="text-xs">
+                          <span className="text-muted-foreground">Status:</span>{" "}
+                          <span className={getStatusClass(digital2Status)}>{digital2Status}</span>
+                        </p>
                       </div>
                       <Button
                         size="sm"

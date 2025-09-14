@@ -32,6 +32,19 @@ interface Server {
 
 export default function ServersManagementPage() {
   const router = useRouter()
+
+  // --- status strings padronizadas (evita typos) ---
+  const STATUS_NONE = "Nenhuma digital cadastrada"
+  const STATUS_REGISTERED = "Digital cadastrada"
+  const STATUS_READING = "Aguardando leitura no sensor..."
+
+  const getStatusClass = (status: string) => {
+    if (status === STATUS_NONE) return "text-red-500"      // nenhuma digital
+    if (status === STATUS_REGISTERED) return "text-green-600" // já cadastrada
+    if (status === STATUS_READING) return "text-blue-500 animate-pulse" // em leitura
+    return "text-muted-foreground"
+  }
+
   const [servers, setServers] = useState<Server[]>([
     {
       id: 1,
@@ -56,7 +69,10 @@ export default function ServersManagementPage() {
     username: "",
     password: "",
   })
-  const [fingerprintStatuses, setFingerprintStatuses] = useState<string[]>(new Array(2).fill("Não Cadastrada"))
+
+  // inicializa com texto padronizado
+  const [fingerprintStatuses, setFingerprintStatuses] = useState<string[]>(new Array(2).fill(STATUS_NONE),)
+  // garante que o isReading sempre exista e possa ser indexado
   const [isReading, setIsReading] = useState<boolean[]>(new Array(2).fill(false))
 
   useEffect(() => {
@@ -81,7 +97,9 @@ export default function ServersManagementPage() {
   const handleAddServer = () => {
     setEditingServer(null)
     setFormData({ name: "", username: "", password: "" })
-    setFingerprintStatuses(new Array(2).fill("Não Cadastrada"))
+    // reset completo: statuses padronizados e leitura zerada
+    setFingerprintStatuses(new Array(2).fill(STATUS_NONE))
+    setIsReading(new Array(2).fill(false))
     setIsModalOpen(true)
   }
 
@@ -92,7 +110,10 @@ export default function ServersManagementPage() {
       username: server.username,
       password: server.password,
     })
-    setFingerprintStatuses(server.fingerprints.map((registered) => (registered ? "Cadastrada" : "Não Cadastrada")))
+    // padroniza os textos com base nos booleans do servidor
+    setFingerprintStatuses(server.fingerprints.map((registered) => (registered ? STATUS_REGISTERED : STATUS_NONE)))
+    // reset leitura também ao editar (impede botão travado)
+    setIsReading(new Array(2).fill(false))
     setIsModalOpen(true)
   }
 
@@ -101,17 +122,16 @@ export default function ServersManagementPage() {
   }
 
   const handleSaveServer = () => {
-    const newFingerprints = fingerprintStatuses.map((status) => status === "Cadastrada")
+    // converte back para boolean seguindo a string padronizada
+    const newFingerprints = fingerprintStatuses.map((status) => status === STATUS_REGISTERED)
 
     if (editingServer) {
-      // Update existing server
       setServers(
         servers.map((server) =>
           server.id === editingServer.id ? { ...server, ...formData, fingerprints: newFingerprints } : server,
         ),
       )
     } else {
-      // Add new server
       const newServer: Server = {
         id: Math.max(...servers.map((s) => s.id), 0) + 1,
         ...formData,
@@ -124,26 +144,34 @@ export default function ServersManagementPage() {
   }
 
   const handleRegisterFingerprint = (slotIndex: number) => {
+    // cria novas referências - importante para forçar rerender
     const newIsReading = [...isReading]
     newIsReading[slotIndex] = true
     setIsReading(newIsReading)
 
     const newStatuses = [...fingerprintStatuses]
-    newStatuses[slotIndex] = "Aguardando leitura no sensor..."
+    newStatuses[slotIndex] = STATUS_READING
     setFingerprintStatuses(newStatuses)
 
     setTimeout(() => {
-      newStatuses[slotIndex] = "Cadastrada"
-      setFingerprintStatuses(newStatuses)
-      newIsReading[slotIndex] = false
-      setIsReading(newIsReading)
+      const updatedStatuses = [...newStatuses]
+      updatedStatuses[slotIndex] = STATUS_REGISTERED
+      setFingerprintStatuses(updatedStatuses)
+
+      const updatedIsReading = [...newIsReading]
+      updatedIsReading[slotIndex] = false
+      setIsReading(updatedIsReading)
     }, 2000)
   }
 
   const handleDeleteFingerprint = (slotIndex: number) => {
     const newStatuses = [...fingerprintStatuses]
-    newStatuses[slotIndex] = "Não Cadastrada"
+    newStatuses[slotIndex] = STATUS_NONE
     setFingerprintStatuses(newStatuses)
+    // também garantir que isReading esteja falso (caso)
+    const newIsReading = [...isReading]
+    newIsReading[slotIndex] = false
+    setIsReading(newIsReading)
   }
 
   return (
@@ -192,7 +220,7 @@ export default function ServersManagementPage() {
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button variant="outline" size="sm" className="hover:bg-red-500/80">
-                                <Trash2 className="h-4 w-4"/>
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
@@ -205,7 +233,7 @@ export default function ServersManagementPage() {
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction 
+                                <AlertDialogAction
                                   onClick={() => handleDeleteServer(server.id)}
                                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                 >
@@ -271,32 +299,23 @@ export default function ServersManagementPage() {
                     <div key={index} className="flex items-center justify-between">
                       <div className="space-y-1">
                         <span className="text-sm font-medium">Digital {index + 1}:</span>
-                        <div className="text-xs text-muted-foreground">
-                          Status:{" "}
-                          {fingerprintStatuses[index] === "Cadastrada"
-                            ? "Digital cadastrada"
-                            : "Nenhuma digital cadastrada"}
-                        </div>
+                          <p className="text-xs">
+                            <span className="text-muted-foreground">Status:</span>{" "}
+                            <span className={getStatusClass(fingerprintStatuses[index])}>
+                              {fingerprintStatuses[index]}
+                            </span>
+                          </p>
                       </div>
 
                       <div className="flex space-x-2">
-                        {fingerprintStatuses[index] === "Não Cadastrada" ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleRegisterFingerprint(index)}
-                            disabled={isReading[index]}
-                          >
-                            <Fingerprint className="h-3 w-3 mr-1" />
-                            Cadastrar Digital {index + 1}
-                          </Button>
-                        ) : fingerprintStatuses[index] === "Cadastrada" ? (
+                        {fingerprintStatuses[index] === STATUS_REGISTERED ? (
                           <>
                             <Button
                               size="sm"
                               variant="outline"
                               onClick={() => handleRegisterFingerprint(index)}
                               disabled={isReading[index]}
+                              className="text-xs"
                             >
                               <Fingerprint className="h-3 w-3 mr-1" />
                               Recadastrar Digital {index + 1}
@@ -305,15 +324,22 @@ export default function ServersManagementPage() {
                               size="sm"
                               variant="outline"
                               onClick={() => handleDeleteFingerprint(index)}
-                              className="text-destructive hover:text-accent-foreground hover:bg-red-500/90"
+                              className="text-destructive hover:text-accent-foreground hover:bg-red-500/90 text-xs"
                             >
+                              <Fingerprint className="h-3 w-3 mr-1" />
                               Excluir
                             </Button>
                           </>
                         ) : (
-                          <Button size="sm" variant="outline" disabled>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleRegisterFingerprint(index)}
+                            disabled={isReading[index]}
+                            className="text-xs"
+                          >
                             <Fingerprint className="h-3 w-3 mr-1" />
-                            Aguardando...
+                            Cadastrar Digital {index + 1}
                           </Button>
                         )}
                       </div>
@@ -327,7 +353,9 @@ export default function ServersManagementPage() {
                 <Button variant="outline" onClick={() => setIsModalOpen(false)}>
                   Cancelar
                 </Button>
-                <Button onClick={handleSaveServer} className="bg-secondary hover:bg-secondary/90">{editingServer ? "Salvar Alterações" : "Adicionar Servidor"}</Button>
+                <Button onClick={handleSaveServer} className="bg-secondary hover:bg-secondary/90">
+                  {editingServer ? "Salvar Alterações" : "Adicionar Servidor"}
+                </Button>
               </div>
             </div>
           </DialogContent>
