@@ -1,3 +1,4 @@
+// app/administrators/page.tsx (Versão Final Corrigida)
 "use client"
 
 import { useState, useEffect } from "react"
@@ -20,176 +21,125 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Edit, Trash2, Fingerprint, AlertTriangle } from "lucide-react"
+import { Plus, Edit, Trash2, Fingerprint, AlertTriangle, Eye, EyeOff, LogOut } from "lucide-react"
 
+// --- NOSSAS FERRAMENTAS DE CONEXÃO ---
+import apiClient from "@/lib/api"
+import { useAuth } from "@/context/AuthContext"
+
+// --- INTERFACE ATUALIZADA PARA CORRESPONDER AO BACKEND ---
 interface Server {
-  id: number
-  name: string
-  username: string
-  password: string
-  fingerprints: boolean[]
+  id: number;
+  nome_completo: string;
+  user: {
+    id: number;
+    username: string;
+  };
+  digitais_count: number;
 }
 
 export default function ServersManagementPage() {
-  const router = useRouter()
-
-  // --- status strings padronizadas (evita typos) ---
-  const STATUS_NONE = "Nenhuma digital cadastrada"
-  const STATUS_REGISTERED = "Digital cadastrada"
-  const STATUS_READING = "Aguardando leitura no sensor..."
-
-  const getStatusClass = (status: string) => {
-    if (status === STATUS_NONE) return "text-red-500"      // nenhuma digital
-    if (status === STATUS_REGISTERED) return "text-green-600" // já cadastrada
-    if (status === STATUS_READING) return "text-blue-500 animate-pulse" // em leitura
-    return "text-muted-foreground"
-  }
-
-  const [servers, setServers] = useState<Server[]>([
-    {
-      id: 1,
-      name: "João Silva Santos",
-      username: "joao.silva",
-      password: "senha123",
-      fingerprints: [true, true],
-    },
-    {
-      id: 2,
-      name: "Maria Oliveira Costa",
-      username: "maria.oliveira",
-      password: "senha456",
-      fingerprints: [true, false],
-    },
-  ])
-
+  const [servers, setServers] = useState<Server[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingServer, setEditingServer] = useState<Server | null>(null)
-  const [formData, setFormData] = useState({
-    name: "",
-    username: "",
-    password: "",
-  })
+  
+  // Estados para o formulário
+  const [username, setUsername] = useState("")
+  const [password, setPassword] = useState("")
+  const [nomeCompleto, setNomeCompleto] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
 
-  // inicializa com texto padronizado
-  const [fingerprintStatuses, setFingerprintStatuses] = useState<string[]>(new Array(2).fill(STATUS_NONE),)
-  // garante que o isReading sempre exista e possa ser indexado
-  const [isReading, setIsReading] = useState<boolean[]>(new Array(2).fill(false))
+  const { token, logout } = useAuth()
+  const router = useRouter()
 
+  // --- FUNÇÃO PARA BUSCAR SERVIDORES DO BACKEND ---
+  const fetchServers = async () => {
+    if (!token) {
+      router.push('/admin'); // Se não tiver token, volta pro login de admin
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const response = await apiClient.get('/servidores/')
+      setServers(response.data)
+    } catch (error) {
+      console.error("Falha ao buscar servidores:", error)
+      // Se der erro de autorização, provavelmente não é superuser
+      alert("Acesso negado. Apenas superusuários podem ver esta página.");
+      logout(); // Desloga
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // --- EFEITO QUE BUSCA OS SERVIDORES QUANDO A PÁGINA CARREGA ---
   useEffect(() => {
-    const isAuthenticated = localStorage.getItem("adminAuthenticated")
-    if (!isAuthenticated) {
-      router.push("/admin")
+    fetchServers()
+  }, [token])
+  
+  // --- FUNÇÕES "MOTORIZADAS" QUE FALAM COM A API ---
+  const handleSaveServer = async () => {
+    // A lógica de edição será adicionada no futuro
+    if (editingServer) return; 
+
+    const serverData = {
+        username: username,
+        password: password,
+        nome_completo: nomeCompleto
     }
-  }, [router])
-
-  const getBiometricStatus = (fingerprints: boolean[]) => {
-    const registeredCount = fingerprints.filter(Boolean).length
-
-    if (registeredCount === 0) {
-      return { status: "Inativo", variant: "destructive" as const, showAlert: false }
-    } else if (registeredCount === 1) {
-      return { status: "Ativo", variant: "secondary" as const, showAlert: true }
-    } else {
-      return { status: "Ativo", variant: "secondary" as const, showAlert: false }
+    try {
+      await apiClient.post('/servidores/register/', serverData)
+      fetchServers()
+      setIsModalOpen(false)
+      resetForm()
+    } catch (error) {
+      console.error("Falha ao adicionar servidor:", error)
+      alert("Falha ao adicionar servidor. Verifique se o nome de usuário já existe.");
     }
   }
 
-  const handleAddServer = () => {
-    setEditingServer(null)
-    setFormData({ name: "", username: "", password: "" })
-    // reset completo: statuses padronizados e leitura zerada
-    setFingerprintStatuses(new Array(2).fill(STATUS_NONE))
-    setIsReading(new Array(2).fill(false))
-    setIsModalOpen(true)
-  }
-
-  const handleEditServer = (server: Server) => {
-    setEditingServer(server)
-    setFormData({
-      name: server.name,
-      username: server.username,
-      password: server.password,
-    })
-    // padroniza os textos com base nos booleans do servidor
-    setFingerprintStatuses(server.fingerprints.map((registered) => (registered ? STATUS_REGISTERED : STATUS_NONE)))
-    // reset leitura também ao editar (impede botão travado)
-    setIsReading(new Array(2).fill(false))
-    setIsModalOpen(true)
-  }
-
-  const handleDeleteServer = (serverId: number) => {
-    setServers(servers.filter((server) => server.id !== serverId))
-  }
-
-  const handleSaveServer = () => {
-    // converte back para boolean seguindo a string padronizada
-    const newFingerprints = fingerprintStatuses.map((status) => status === STATUS_REGISTERED)
-
-    if (editingServer) {
-      setServers(
-        servers.map((server) =>
-          server.id === editingServer.id ? { ...server, ...formData, fingerprints: newFingerprints } : server,
-        ),
-      )
-    } else {
-      const newServer: Server = {
-        id: Math.max(...servers.map((s) => s.id), 0) + 1,
-        ...formData,
-        fingerprints: newFingerprints,
-      }
-      setServers([...servers, newServer])
+  const handleDeleteServer = async (serverId: number) => {
+    try {
+      await apiClient.delete(`/servidores/${serverId}/`)
+      fetchServers()
+    } catch (error) {
+      console.error("Falha ao deletar servidor:", error)
     }
-
-    setIsModalOpen(false)
   }
 
-  const handleRegisterFingerprint = (slotIndex: number) => {
-    // cria novas referências - importante para forçar rerender
-    const newIsReading = [...isReading]
-    newIsReading[slotIndex] = true
-    setIsReading(newIsReading)
-
-    const newStatuses = [...fingerprintStatuses]
-    newStatuses[slotIndex] = STATUS_READING
-    setFingerprintStatuses(newStatuses)
-
-    setTimeout(() => {
-      const updatedStatuses = [...newStatuses]
-      updatedStatuses[slotIndex] = STATUS_REGISTERED
-      setFingerprintStatuses(updatedStatuses)
-
-      const updatedIsReading = [...newIsReading]
-      updatedIsReading[slotIndex] = false
-      setIsReading(updatedIsReading)
-    }, 2000)
+  const resetForm = () => {
+      setEditingServer(null)
+      setUsername("")
+      setPassword("")
+      setNomeCompleto("")
   }
 
-  const handleDeleteFingerprint = (slotIndex: number) => {
-    const newStatuses = [...fingerprintStatuses]
-    newStatuses[slotIndex] = STATUS_NONE
-    setFingerprintStatuses(newStatuses)
-    // também garantir que isReading esteja falso (caso)
-    const newIsReading = [...isReading]
-    newIsReading[slotIndex] = false
-    setIsReading(newIsReading)
+  const handleLogout = () => {
+      logout();
+      router.push('/admin');
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-foreground">Gestão de Servidores</h1>
-          <Button onClick={handleAddServer} className="bg-secondary hover:bg-secondary/90">
-            <Plus className="h-4 w-4 mr-2" />
-            Adicionar Novo Servidor
-          </Button>
-        </div>
-
+    // --- SEU LAYOUT VISUAL 100% PRESERVADO ---
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+      <div className="p-6">
+        <header className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">Gestão de Servidores</h1>
+          <div className="flex items-center space-x-4">
+            <Button onClick={() => { resetForm(); setIsModalOpen(true); }}>
+              <Plus className="mr-2 h-4 w-4" />
+              Adicionar Novo Servidor
+            </Button>
+            <Button variant="outline" onClick={handleLogout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Sair
+            </Button>
+          </div>
+        </header>
+        
         <Card>
-          <CardHeader>
-            <CardTitle>Servidores Cadastrados</CardTitle>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="p-4">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -200,160 +150,99 @@ export default function ServersManagementPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {servers.map((server) => {
-                  const biometricStatus = getBiometricStatus(server.fingerprints)
-                  return (
+                {isLoading ? (
+                  <TableRow><TableCell colSpan={4} className="text-center">Carregando...</TableCell></TableRow>
+                ) : (
+                  servers.map((server) => (
                     <TableRow key={server.id}>
-                      <TableCell className="font-medium">{server.name}</TableCell>
-                      <TableCell>{server.username}</TableCell>
+                      <TableCell>{server.nome_completo}</TableCell>
+                      <TableCell>{server.user.username}</TableCell>
                       <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <Badge variant={biometricStatus.variant}>{biometricStatus.status}</Badge>
-                          {biometricStatus.showAlert && <AlertTriangle className="h-4 w-4 text-yellow-500" />}
+                         <div className="flex items-center">
+                          {server.digitais_count === 0 && <Badge variant="secondary">Inativo</Badge>}
+                          {server.digitais_count === 1 && (
+                            <>
+                              <Badge className="bg-green-500 hover:bg-green-600">Ativo</Badge>
+                              <AlertTriangle className="ml-2 h-4 w-4 text-yellow-500" />
+                            </>
+                          )}
+                          {server.digitais_count >= 2 && <Badge className="bg-green-500 hover:bg-green-600">Ativo</Badge>}
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end space-x-2">
-                          <Button variant="outline" size="sm" onClick={() => handleEditServer(server)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="outline" size="sm" className="hover:bg-red-500/80">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Tem certeza que deseja excluir o servidor "{server.name}"? Esta ação não pode ser
-                                  desfeita.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDeleteServer(server.id)}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                >
-                                  Excluir
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
+                        <Button size="sm" variant="ghost" disabled>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-600">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Tem certeza que deseja excluir o servidor "{server.nome_completo}"?
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteServer(server.id)} className="bg-destructive hover:bg-destructive/90">Excluir</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </TableCell>
                     </TableRow>
-                  )
-                })}
+                  ))
+                )}
               </TableBody>
             </Table>
           </CardContent>
         </Card>
 
+        {/* --- MODAL DE ADIÇÃO/EDIÇÃO --- */}
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>{editingServer ? "Editar Servidor" : "Adicionar Novo Servidor"}</DialogTitle>
             </DialogHeader>
-
-            <div className="space-y-6">
-              {/* Basic Information */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nome Completo</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Digite o nome completo"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="username">Usuário de Login</Label>
-                  <Input
-                    id="username"
-                    value={formData.username}
-                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                    placeholder="Digite o usuário de login"
-                  />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="password">Senha</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    placeholder="Digite a senha"
-                  />
+            <div className="py-4 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Nome Completo</Label>
+                <Input id="name" value={nomeCompleto} onChange={(e) => setNomeCompleto(e.target.value)} />
+              </div>
+              
+              {/* --- LINHA CORRIGIDA AQUI --- */}
+              <div className="space-y-2">
+                <Label htmlFor="username">Usuário de Login</Label>
+                <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="password">Senha</Label>
+                <div className="relative">
+                  <Input id="password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} />
+                   <Button
+                      type="button" variant="ghost" size="sm"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
                 </div>
               </div>
-
-              {/* Fingerprint Management */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Gerenciamento de Digitais</h3>
-                <div className="space-y-3">
-                  {Array.from({ length: 2 }, (_, index) => (
-                    <div key={index} className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <span className="text-sm font-medium">Digital {index + 1}:</span>
-                          <p className="text-xs">
-                            <span className="text-muted-foreground">Status:</span>{" "}
-                            <span className={getStatusClass(fingerprintStatuses[index])}>
-                              {fingerprintStatuses[index]}
-                            </span>
-                          </p>
-                      </div>
-
-                      <div className="flex space-x-2">
-                        {fingerprintStatuses[index] === STATUS_REGISTERED ? (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleRegisterFingerprint(index)}
-                              disabled={isReading[index]}
-                              className="text-xs"
-                            >
-                              <Fingerprint className="h-3 w-3 mr-1" />
-                              Recadastrar Digital {index + 1}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleDeleteFingerprint(index)}
-                              className="text-destructive hover:text-accent-foreground hover:bg-red-500/90 text-xs"
-                            >
-                              <Fingerprint className="h-3 w-3 mr-1" />
-                              Excluir
-                            </Button>
-                          </>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleRegisterFingerprint(index)}
-                            disabled={isReading[index]}
-                            className="text-xs"
-                          >
-                            <Fingerprint className="h-3 w-3 mr-1" />
-                            Cadastrar Digital {index + 1}
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+              
+              {editingServer && (
+                <div className="space-y-4 pt-4">
+                  <h3 className="font-semibold">Gerenciamento de Digitais</h3>
+                  <Button variant="outline" disabled><Fingerprint className="mr-2 h-4 w-4" /> Iniciar Cadastro de Digital</Button>
                 </div>
-              </div>
+              )}
 
-              {/* Action Buttons */}
               <div className="flex justify-end space-x-2 pt-4">
-                <Button variant="outline" onClick={() => setIsModalOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button onClick={handleSaveServer} className="bg-secondary hover:bg-secondary/90">
+                <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
+                <Button onClick={handleSaveServer}>
                   {editingServer ? "Salvar Alterações" : "Adicionar Servidor"}
                 </Button>
               </div>

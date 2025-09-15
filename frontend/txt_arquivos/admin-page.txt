@@ -1,7 +1,7 @@
-// app/admin/page.tsx (Versão Conectada)
 "use client"
 
 import type React from "react"
+
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,61 +11,55 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Shield, Eye, EyeOff } from "lucide-react"
 
-// --- Importando nossa ferramenta de autenticação ---
-import { useAuth } from "@/context/AuthContext"
-
 export default function AdminLogin() {
-  // --- MUDANÇA 1: O campo 'email' agora será o 'username' para a API ---
-  const [username, setUsername] = useState("")
+  const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
-  
-  const { login } = useAuth()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError("")
 
-    try {
-      // --- MUDANÇA 2: Usando a função de login real ---
-      await login(username, password)
-      // O backend irá validar se o usuário é um superuser nas próximas requisições.
+    if (email === "admin@admin.ifnmg.edu.br" && password === "@dm1n1str@dor") {
+      // Set admin session in localStorage
+      localStorage.setItem("adminAuthenticated", "true")
+      localStorage.setItem("adminEmail", email)
       router.push("/administrators")
-    } catch (err) {
-      setError("Credenciais de admin inválidas. Verifique seu usuário e senha.")
-      console.error("Falha no login de admin:", err)
-    } finally {
-      setIsLoading(false)
+    } else {
+      setError("Credenciais inválidas. Verifique seu email e senha.")
     }
+
+    setIsLoading(false)
   }
 
   return (
-    // Seu layout visual é 100% preservado
-    <div className="min-h-screen flex items-center justify-center bg-gray-900 p-4">
-      <Card className="w-full max-w-md bg-gray-800 border-gray-700 text-white">
-        <CardHeader className="text-center">
-          <Shield className="h-12 w-12 mx-auto text-blue-400" />
-          <CardTitle className="text-2xl font-bold mt-4">Acesso Administrativo</CardTitle>
-          <CardDescription className="text-gray-400">
-            Use suas credenciais de superusuário para continuar.
-          </CardDescription>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center space-y-4">
+          <div className="mx-auto w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
+            <Shield className="w-8 h-8 text-white" />
+          </div>
+          <div>
+            <CardTitle className="text-2xl font-bold text-gray-900">Acesso Administrativo</CardTitle>
+            <CardDescription className="text-gray-600">Entre com suas credenciais de administrador</CardDescription>
+          </div>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Usuário (Admin)</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
-                id="username"
-                type="text"
-                placeholder="Digite seu usuário de admin"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                id="email"
+                type="email"
+                placeholder="admin@admin.ifnmg.edu.br"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
-                className="bg-gray-700 border-gray-600 placeholder-gray-500"
+                className="w-full"
               />
             </div>
 
@@ -79,7 +73,7 @@ export default function AdminLogin() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full pr-10 bg-gray-700 border-gray-600 placeholder-gray-500"
+                  className="w-full pr-10"
                 />
                 <Button
                   type="button"
