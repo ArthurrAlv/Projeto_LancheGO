@@ -4,3 +4,18 @@ daphne -p 8000 lanchego_project.asgi:application
 --- serial
 python manage.py listen_serial 
 
+--- ativar python
+.\\venv\\Scripts\\activate
+
+
+// frontend/package.json
+"scripts": {
+  "dev": "next dev",
+  "build": "next build",
+  "start": "next start",
+  "lint": "next lint",
+  "fullstack": "concurrently \"cd ../backend && .\\venv\\Scripts\\activate && daphne -p 8000 lanchego_project.asgi:application\" \"cd ../backend && .\\venv\\Scripts\\activate && python manage.py listen_serial\" \"npm run dev\""
+},
+
+
+npm install concurrently
