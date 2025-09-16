@@ -31,6 +31,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'channels',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -40,8 +41,6 @@ INSTALLED_APPS = [
     'corsheaders',
     'api',
     'rest_framework',
-    'channels',
-
 ]
 
 MIDDLEWARE = [
@@ -130,3 +129,18 @@ ASGI_APPLICATION = 'lanchego_project.asgi.application'
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    )
+}
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+        },
+    },
+}

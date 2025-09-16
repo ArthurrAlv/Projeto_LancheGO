@@ -1,0 +1,6 @@
+--- backend
+daphne -p 8000 lanchego_project.asgi:application 
+
+--- serial
+python manage.py listen_serial 
+

@@ -2,6 +2,7 @@
 
 from django.urls import path
 from . import views
+from .views import AlunoListCreate, AlunoRetrieveUpdateDestroy, AssociateFingerprintView, FingerprintLoginView 
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -11,6 +12,7 @@ urlpatterns = [
     # Rotas de Autenticação (Login)
     path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('token/fingerprint/', FingerprintLoginView.as_view(), name='token_fingerprint'),
 
     # Rotas para Alunos (CRUD completo)
     path('alunos/', views.AlunoListCreate.as_view(), name='aluno-list-create'),
@@ -24,4 +26,5 @@ urlpatterns = [
     # ROTAS PARA COMANDOS DO HARDWARE
     path('hardware/start-enroll/', views.StartEnrollView.as_view(), name='start-enroll'),
     path('hardware/delete-fingerprint/', views.DeleteFingerprintView.as_view(), name='delete-fingerprint'),
+    path('digitais/associar/', AssociateFingerprintView.as_view(), name='associate-fingerprint'),
 ]

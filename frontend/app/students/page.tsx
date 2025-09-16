@@ -1,9 +1,9 @@
-// app/students/page.tsx (Versão Final Corrigida)
+// app/students/page.tsx
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,13 +22,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { Plus, Pencil, Trash2, Fingerprint, Search, AlertTriangle } from "lucide-react"
+import { Plus, Pencil, Trash2, Fingerprint, Search, AlertTriangle, Loader2 } from "lucide-react"
 
-// --- NOSSAS FERRAMENTAS DE CONEXÃO ---
 import apiClient from "@/lib/api"
 import { useAuth } from "@/context/AuthContext"
 
-// --- INTERFACE ATUALIZADA PARA CORRESPONDER AO BACKEND ---
 interface Student {
   id: number;
   nome_completo: string;
@@ -38,7 +36,6 @@ interface Student {
 }
 
 export default function StudentsPage() {
-  // --- ESTADOS REAIS (A LISTA COMEÇA VAZIA) ---
   const [students, setStudents] = useState<Student[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
@@ -48,15 +45,44 @@ export default function StudentsPage() {
   const [editingStudent, setEditingStudent] = useState<Student | null>(null)
   const [newStudent, setNewStudent] = useState({ nome_completo: "", matricula: "", turma: "" })
 
+  // --- NOVOS ESTADOS PARA CADASTRO DE DIGITAL ---
+  const [enrollmentStatus, setEnrollmentStatus] = useState("Aguardando início...")
+  const [isEnrolling, setIsEnrolling] = useState(false)
+  const ws = useRef<WebSocket | null>(null)
+
   const { token } = useAuth()
   const router = useRouter()
 
-  // --- FUNÇÃO PARA BUSCAR ALUNOS DO BACKEND ---
+  // --- WEBSOCKET PARA OUVIR O HARDWARE ---
+  const setupWebSocket = () => {
+    if (ws.current && ws.current.readyState === WebSocket.OPEN) return
+
+    const wsUrl = "ws://127.0.0.1:8000/ws/hardware/"
+    ws.current = new WebSocket(wsUrl)
+
+    ws.current.onmessage = (event) => {
+      const data = JSON.parse(event.data)
+      switch (data.type) {
+        case "cadastro.feedback":
+          setEnrollmentStatus(data.message)
+          break
+        case "cadastro.success":
+          handleAssociateFingerprint(data.sensor_id)
+          break
+        case "cadastro.error":
+          setEnrollmentStatus(`Erro: ${data.message}`)
+          setTimeout(() => setIsEnrolling(false), 3000)
+          break
+      }
+    }
+  }
+
+  // --- API: LISTA ALUNOS ---
   const fetchStudents = async () => {
     if (!token) return
     setIsLoading(true)
     try {
-      const response = await apiClient.get('/alunos/')
+      const response = await apiClient.get("/alunos/")
       setStudents(response.data)
     } catch (error) {
       console.error("Falha ao buscar alunos:", error)
@@ -65,18 +91,17 @@ export default function StudentsPage() {
     }
   }
 
-  // --- EFEITO QUE BUSCA OS ALUNOS QUANDO A PÁGINA CARREGA ---
   useEffect(() => {
     fetchStudents()
   }, [token])
 
-  // --- FUNÇÕES "MOTORIZADAS" QUE FALAM COM A API ---
+  // --- CRUD ---
   const handleAddNewStudent = async () => {
     try {
-      await apiClient.post('/alunos/', newStudent)
-      fetchStudents() // Atualiza a tabela
-      setIsAddModalOpen(false) // Fecha o modal
-      setNewStudent({ nome_completo: "", matricula: "", turma: "" }) // Limpa o formulário
+      await apiClient.post("/alunos/", newStudent)
+      fetchStudents()
+      setIsAddModalOpen(false)
+      setNewStudent({ nome_completo: "", matricula: "", turma: "" })
     } catch (error) {
       console.error("Falha ao adicionar aluno:", error)
     }
@@ -85,14 +110,13 @@ export default function StudentsPage() {
   const handleUpdateStudent = async () => {
     if (!editingStudent) return
     try {
-      const studentDataToUpdate = {
-          nome_completo: editingStudent.nome_completo,
-          matricula: editingStudent.matricula,
-          turma: editingStudent.turma,
-      };
-      await apiClient.put(`/alunos/${editingStudent.id}/`, studentDataToUpdate)
-      fetchStudents() // Atualiza a tabela
-      setIsEditModalOpen(false) // Fecha o modal
+      await apiClient.put(`/alunos/${editingStudent.id}/`, {
+        nome_completo: editingStudent.nome_completo,
+        matricula: editingStudent.matricula,
+        turma: editingStudent.turma,
+      })
+      fetchStudents()
+      setIsEditModalOpen(false)
     } catch (error) {
       console.error("Falha ao atualizar aluno:", error)
     }
@@ -101,24 +125,49 @@ export default function StudentsPage() {
   const handleDeleteStudent = async (studentId: number) => {
     try {
       await apiClient.delete(`/alunos/${studentId}/`)
-      fetchStudents() // Atualiza a tabela
+      fetchStudents()
     } catch (error) {
       console.error("Falha ao deletar aluno:", error)
     }
   }
 
-  // --- FUNÇÃO PARA INICIAR O CADASTRO DE DIGITAL ---
-  const handleStartEnrollment = async () => {
-      try {
-          await apiClient.post('/hardware/start-enroll/');
-          alert("Modo de cadastro ativado! Siga as instruções no leitor ou em um display conectado a ele.");
-      } catch (error) {
-          console.error("Falha ao iniciar modo de cadastro:", error);
-          alert("Erro ao se comunicar com o hardware. Verifique se o leitor está conectado.");
-      }
+  // --- DIGITAL ---
+  const handleAssociateFingerprint = async (sensorId: number) => {
+    if (!editingStudent) return
+    setEnrollmentStatus("Digital lida com sucesso! Associando ao aluno...")
+    try {
+      await apiClient.post("/digitais/associar/", {
+        sensor_id: sensorId,
+        aluno_id: editingStudent.id,
+      })
+      setEnrollmentStatus("Digital associada com sucesso!")
+      await fetchStudents()
+      setTimeout(() => {
+        setIsEnrolling(false)
+        setIsEditModalOpen(false)
+      }, 2000)
+    } catch (error) {
+      console.error("Falha ao associar digital:", error)
+      setEnrollmentStatus("Erro ao associar digital no sistema.")
+    }
   }
 
-  // Lógica de filtragem (mantida do seu código)
+  const handleStartEnrollment = async () => {
+    if (!editingStudent) return
+    setIsEnrolling(true)
+    setEnrollmentStatus("Iniciando modo de cadastro...")
+    setupWebSocket()
+    try {
+      await apiClient.post("/hardware/start-enroll/")
+      setEnrollmentStatus("Comando enviado. Siga as instruções no leitor.")
+    } catch (error) {
+      console.error("Falha ao iniciar modo de cadastro:", error)
+      setEnrollmentStatus("Erro de comunicação com o hardware.")
+      setTimeout(() => setIsEnrolling(false), 3000)
+    }
+  }
+
+  // --- FILTRO ---
   const filteredStudents = students.filter((student) => {
     const nameMatch = student.nome_completo.toLowerCase().includes(searchTerm.toLowerCase())
     const turmaMatch = turmaFilter === "Todas as Turmas" || student.turma === turmaFilter
@@ -126,7 +175,6 @@ export default function StudentsPage() {
   })
 
   return (
-    // --- SEU LAYOUT VISUAL 100% PRESERVADO ---
     <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
       <div className="flex-1 p-6">
         <div className="flex justify-between items-center mb-6">
@@ -178,7 +226,11 @@ export default function StudentsPage() {
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow><TableCell colSpan={5} className="text-center">Carregando alunos...</TableCell></TableRow>
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center">
+                      Carregando alunos...
+                    </TableCell>
+                  </TableRow>
                 ) : (
                   filteredStudents.map((student) => (
                     <TableRow key={student.id}>
@@ -191,21 +243,33 @@ export default function StudentsPage() {
                           {student.digitais_count === 1 && (
                             <>
                               <Badge className="bg-green-500 hover:bg-green-600">Ativo</Badge>
-                              {/* --- CÓDIGO CORRIGIDO AQUI (REMOVIDO O 'title') --- */}
                               <AlertTriangle className="ml-2 h-4 w-4 text-yellow-500" />
                             </>
                           )}
-                          {student.digitais_count === 2 && <Badge className="bg-green-500 hover:bg-green-600">Ativo</Badge>}
+                          {student.digitais_count === 2 && (
+                            <Badge className="bg-green-500 hover:bg-green-600">Ativo</Badge>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex justify-end items-center space-x-2">
-                          <Button variant="ghost" size="icon" onClick={() => { setEditingStudent(student); setIsEditModalOpen(true); }}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setEditingStudent(student)
+                              setIsEditModalOpen(true)
+                            }}
+                          >
                             <Pencil className="h-4 w-4" />
                           </Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-red-500 hover:text-red-600"
+                              >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </AlertDialogTrigger>
@@ -218,7 +282,10 @@ export default function StudentsPage() {
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDeleteStudent(student.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteStudent(student.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
                                   Excluir
                                 </AlertDialogAction>
                               </AlertDialogFooter>
@@ -235,23 +302,35 @@ export default function StudentsPage() {
         </Card>
       </div>
 
-      {/* --- MODAIS (LÓGICA INTERNA ATUALIZADA) --- */}
+      {/* --- MODAL ADIÇÃO --- */}
       <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Adicionar Novo Aluno</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Adicionar Novo Aluno</DialogTitle>
+          </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="add-name">Nome Completo</Label>
-              <Input id="add-name" value={newStudent.nome_completo} onChange={(e) => setNewStudent({ ...newStudent, nome_completo: e.target.value })} />
+              <Input
+                id="add-name"
+                value={newStudent.nome_completo}
+                onChange={(e) => setNewStudent({ ...newStudent, nome_completo: e.target.value })}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="add-matricula">Matrícula</Label>
-              <Input id="add-matricula" value={newStudent.matricula} onChange={(e) => setNewStudent({ ...newStudent, matricula: e.target.value })} />
+              <Input
+                id="add-matricula"
+                value={newStudent.matricula}
+                onChange={(e) => setNewStudent({ ...newStudent, matricula: e.target.value })}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="add-turma">Turma</Label>
               <Select onValueChange={(value) => setNewStudent({ ...newStudent, turma: value })}>
-                <SelectTrigger><SelectValue placeholder="Selecione a turma" /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a turma" />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="1E">1º Ano Eletro</SelectItem>
                   <SelectItem value="2E">2º Ano Eletro</SelectItem>
@@ -264,47 +343,86 @@ export default function StudentsPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>
+              Cancelar
+            </Button>
             <Button onClick={handleAddNewStudent}>Salvar Aluno</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
+      {/* --- MODAL EDIÇÃO --- */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader><DialogTitle>Editar Aluno</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Editar Aluno</DialogTitle>
+          </DialogHeader>
           {editingStudent && (
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label htmlFor="edit-name">Nome Completo</Label>
-                <Input id="edit-name" value={editingStudent.nome_completo} onChange={(e) => setEditingStudent({ ...editingStudent, nome_completo: e.target.value })} />
+                <Input
+                  id="edit-name"
+                  value={editingStudent.nome_completo}
+                  onChange={(e) =>
+                    setEditingStudent({ ...editingStudent, nome_completo: e.target.value })
+                  }
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-matricula">Matrícula</Label>
-                <Input id="edit-matricula" value={editingStudent.matricula} onChange={(e) => setEditingStudent({ ...editingStudent, matricula: e.target.value })} />
+                <Input
+                  id="edit-matricula"
+                  value={editingStudent.matricula}
+                  onChange={(e) =>
+                    setEditingStudent({ ...editingStudent, matricula: e.target.value })
+                  }
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-turma">Turma</Label>
-                 <Select value={editingStudent.turma} onValueChange={(value) => setEditingStudent({ ...editingStudent, turma: value })}>
-                    <SelectTrigger><SelectValue placeholder="Selecione a turma" /></SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="1E">1º Ano Eletro</SelectItem>
-                        <SelectItem value="2E">2º Ano Eletro</SelectItem>
-                        <SelectItem value="3E">3º Ano Eletro</SelectItem>
-                        <SelectItem value="1I">1º Ano Info</SelectItem>
-                        <SelectItem value="2I">2º Ano Info</SelectItem>
-                        <SelectItem value="3I">3º Ano Info</SelectItem>
-                    </SelectContent>
+                <Select
+                  value={editingStudent.turma}
+                  onValueChange={(value) =>
+                    setEditingStudent({ ...editingStudent, turma: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a turma" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1E">1º Ano Eletro</SelectItem>
+                    <SelectItem value="2E">2º Ano Eletro</SelectItem>
+                    <SelectItem value="3E">3º Ano Eletro</SelectItem>
+                    <SelectItem value="1I">1º Ano Info</SelectItem>
+                    <SelectItem value="2I">2º Ano Info</SelectItem>
+                    <SelectItem value="3I">3º Ano Info</SelectItem>
+                  </SelectContent>
                 </Select>
               </div>
+
+              {/* --- NOVA SEÇÃO DE DIGITAIS --- */}
               <div className="space-y-4 pt-4">
-                  <h3 className="font-semibold">Gerenciamento de Digitais</h3>
-                  <Button onClick={handleStartEnrollment} variant="outline"><Fingerprint className="mr-2 h-4 w-4" /> Iniciar Cadastro de Digital</Button>
+                <h3 className="font-semibold">Gerenciamento de Digitais</h3>
+                {!isEnrolling ? (
+                  <Button onClick={handleStartEnrollment} variant="outline">
+                    <Fingerprint className="mr-2 h-4 w-4" /> Iniciar Cadastro de Digital
+                  </Button>
+                ) : (
+                  <div className="flex items-center space-x-2 bg-muted p-3 rounded-lg">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span className="text-sm font-medium text-muted-foreground">
+                      {enrollmentStatus}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>
+              Cancelar
+            </Button>
             <Button onClick={handleUpdateStudent}>Salvar Alterações</Button>
           </DialogFooter>
         </DialogContent>

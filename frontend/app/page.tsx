@@ -1,8 +1,8 @@
-// app/page.tsx (Versão Final Conectada)
+// app/page.tsx (Versão Final Unificada)
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -10,10 +10,9 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { User, Lock, Fingerprint } from "lucide-react"
-
-// --- MUDANÇA 1: Importando nossa "memória central" de autenticação ---
+import { User, Lock, Fingerprint, Loader2 } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
+import apiClient from "@/lib/api"
 
 export default function LoginPage() {
   const [username, setUsername] = useState("")
@@ -23,22 +22,69 @@ export default function LoginPage() {
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+  const { login } = useAuth()
+  const ws = useRef<WebSocket | null>(null)
 
-  // --- MUDANÇA 2: Pegando a função de login da nossa "memória" ---
-  const { login } = useAuth();
+  // --- WEBSOCKET PARA LOGIN BIOMÉTRICO ---
+  useEffect(() => {
+    const wsUrl = "ws://127.0.0.1:8000/ws/hardware/"
+    ws.current = new WebSocket(wsUrl)
+
+    ws.current.onopen = () => {
+      console.log("WebSocket conectado (login).")
+      setIsReading(true)
+    }
+
+    ws.current.onmessage = (event) => {
+      console.log("DADO BRUTO RECEBIDO:", event.data); // <-- Adicione para depurar
+      const data = JSON.parse(event.data);
+      
+      // O IF agora vai funcionar!
+      if (
+        data.type === "identificacao.result" &&
+        data.status === "MATCH" 
+        // a condição 'data.aluno === null' parece específica, 
+        // verifique se ela é realmente necessária ou se pode ser removida para o login do operador.
+      ) {
+        const sensorId = parseInt(data.message.split(":")[1]);
+        handleBiometricLogin(sensorId);
+      }
+    }
+
+    ws.current.onclose = () => {
+      console.log("WebSocket desconectado (login).")
+      setIsReading(false)
+    }
+
+    return () => ws.current?.close()
+  }, [])
+
+  const handleBiometricLogin = async (sensorId: number) => {
+    setBiometricStatus("Digital reconhecida. Autenticando...")
+    setIsReading(true)
+    try {
+      const response = await apiClient.post("/token/fingerprint/", { sensor_id: sensorId })
+      const { access } = response.data
+      localStorage.setItem("authToken", access)
+      router.push("/dashboard")
+    } catch (err) {
+      setBiometricStatus("Falha na autenticação. Tente novamente.")
+      console.error("Falha no login biométrico:", err)
+      setTimeout(() => {
+        setBiometricStatus("Aguardando leitura...")
+        setIsReading(false)
+      }, 3000)
+    }
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError("")
-
     try {
-      // --- MUDANÇA 3: Usando a função de login real que chama a API do backend ---
-      await login(username, password);
-      // Se o login der certo, a próxima linha será executada
-      router.push("/dashboard") // Redireciona para o painel
+      await login(username, password)
+      router.push("/dashboard")
     } catch (err) {
-      // Se a API retornar um erro (ex: 401 Não Autorizado), ele será capturado aqui
       setError("Usuário ou senha incorretos. Verifique suas credenciais.")
       console.error("Falha no login:", err)
     } finally {
@@ -46,13 +92,7 @@ export default function LoginPage() {
     }
   }
 
-  const handleBiometricRead = () => {
-    setBiometricStatus("Funcionalidade em desenvolvimento...")
-  }
-
   return (
-    // Seu código JSX (visual) permanece aqui, sem alterações.
-    // Colei o seu layout mais recente para garantir compatibilidade.
     <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-950 p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
@@ -114,10 +154,9 @@ export default function LoginPage() {
 
             <div
               className="bg-muted rounded-lg p-4 cursor-pointer hover:bg-muted/80 transition-colors"
-              onClick={handleBiometricRead}
             >
               <div className="flex items-center justify-center space-x-2">
-                {isReading && <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />}
+                {isReading && <Loader2 className="h-4 w-4 animate-spin" />}
                 <span className="text-sm text-muted-foreground">{biometricStatus}</span>
               </div>
             </div>

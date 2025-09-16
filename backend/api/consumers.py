@@ -1,33 +1,30 @@
 # api/consumers.py
+
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 
-class HardwareConsumer(AsyncWebsocketConsumer):
+class SerialConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        self.room_group_name = 'hardware_updates'
+        self.group_name = 'serial_com'
         await self.channel_layer.group_add(
-            self.room_group_name,
+            self.group_name,
             self.channel_name
         )
         await self.accept()
-        print("Cliente WebSocket conectado!")
+        print("✅ WebSocket CONECTADO e no grupo 'serial_com'") # <--- ADICIONE ESTE PRINT
 
     async def disconnect(self, close_code):
         await self.channel_layer.group_discard(
-            self.room_group_name,
+            self.group_name,
             self.channel_name
         )
-        print("Cliente WebSocket desconectado.")
+        print("❌ WebSocket DESCONECTADO") # <--- ADICIONE ESTE PRINT
 
-    async def receive(self, text_data):
-        # Lógica para receber comandos do frontend (ex: iniciar cadastro)
-        # Será implementada no futuro
-        print(f"Comando recebido do frontend: {text_data}")
-        pass
+    # Este é o método que recebe a mensagem do listen_serial
+    async def serial_message(self, event):
+        # CORREÇÃO: Repassar o payload que já vem estruturado
+        payload = event['payload']
 
-    # Esta função é chamada pelo nosso script de escuta (listen_serial)
-    async def broadcast_message(self, event):
-        message = event['message']
-
-        # Envia a mensagem para o cliente (navegador)
-        await self.send(text_data=json.dumps(message))
+        # Envia o payload diretamente para o navegador (JavaScript)
+        await self.send(text_data=json.dumps(payload))
+        print(f"✅ Payload enviado para o JS: {payload}")  # Print de depuração
