@@ -5,26 +5,28 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 
 class SerialConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        self.group_name = 'serial_com'
+        # PASSO 1: Usar o mesmo nome de grupo do listen_serial
+        self.group_name = 'hardware_updates' 
+        
         await self.channel_layer.group_add(
             self.group_name,
             self.channel_name
         )
         await self.accept()
-        print("✅ WebSocket CONECTADO e no grupo 'serial_com'") # <--- ADICIONE ESTE PRINT
+        print(f"✅ WebSocket CONECTADO e no grupo '{self.group_name}'")
 
     async def disconnect(self, close_code):
         await self.channel_layer.group_discard(
             self.group_name,
             self.channel_name
         )
-        print("❌ WebSocket DESCONECTADO") # <--- ADICIONE ESTE PRINT
+        print("❌ WebSocket DESCONECTADO")
 
-    # Este é o método que recebe a mensagem do listen_serial
-    async def serial_message(self, event):
-        # CORREÇÃO: Repassar o payload que já vem estruturado
-        payload = event['payload']
+    # PASSO 2: Renomear método para 'broadcast_message' e corrigir o payload
+    async def broadcast_message(self, event):
+        # A chave enviada pelo listen_serial é 'message'
+        message_data = event['message']
 
-        # Envia o payload diretamente para o navegador (JavaScript)
-        await self.send(text_data=json.dumps(payload))
-        print(f"✅ Payload enviado para o JS: {payload}")  # Print de depuração
+        # Envia a mensagem diretamente para o navegador (JavaScript)
+        await self.send(text_data=json.dumps(message_data))
+        print(f"✅ Payload enviado para o JS: {message_data}")

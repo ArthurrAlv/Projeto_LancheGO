@@ -1,14 +1,15 @@
-// app/dashboard/page.tsx (Seu Layout + Nossa Lógica REAL)
+// app/dashboard/page.tsx (Versão Final Simplificada)
+
 "use client"
 
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Clock, CheckCircle, XCircle, Usb, AlertTriangle, PlugZap } from "lucide-react" // Usando PlugZap como substituto de UsbOff
+import { Clock, CheckCircle, Usb, AlertTriangle, PlugZap } from "lucide-react" // XCircle foi removido
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/context/AuthContext"
 
-// --- TIPOS DE DADOS (MANTIDOS DO SEU ARQUIVO) ---
-type BiometricState = "waiting" | "success" | "warning" | "error"
+// --- ESTADO DE ERRO REMOVIDO ---
+type BiometricState = "waiting" | "success" | "warning"
 type ReaderStatus = "connected" | "disconnected"
 
 interface Student {
@@ -19,17 +20,16 @@ interface Student {
 }
 
 interface RecentWithdrawal {
-  name: string; // Mantendo 'name' como no seu arquivo original
+  name: string;
   turma: string;
   time: string;
 }
 
 export default function DashboardPage() {
-  // --- ESTADOS (MANTIDOS DO SEU ARQUIVO, AGORA DINÂMICOS) ---
   const [biometricState, setBiometricState] = useState<BiometricState>("waiting")
   const [currentStudent, setCurrentStudent] = useState<Student | null>(null)
   const [readerStatus, setReaderStatus] = useState<ReaderStatus>("disconnected")
-  const [recentWithdrawals, setRecentWithdrawals] = useState<RecentWithdrawal[]>([]) // Inicia vazio
+  const [recentWithdrawals, setRecentWithdrawals] = useState<RecentWithdrawal[]>([])
   
   const { token, isLoading } = useAuth()
   const router = useRouter()
@@ -43,7 +43,6 @@ export default function DashboardPage() {
     }
   }
 
-  // --- LÓGICA DE CONEXÃO COM O BACKEND (A PARTE NOVA E INVISÍVEL) ---
   useEffect(() => {
     if (isLoading) return;
     if (!token) {
@@ -51,25 +50,28 @@ export default function DashboardPage() {
       return;
     }
 
-    // Corrigindo o IP do WebSocket para o endereço correto
     const wsUrl = "ws://127.0.0.1:8000/ws/hardware/"
     ws.current = new WebSocket(wsUrl)
 
     ws.current.onopen = () => console.log("WebSocket conectado!")
     ws.current.onclose = () => setReaderStatus("disconnected")
-    ws.current.onerror = (error) => console.error("Erro no WebSocket:", error)
+    ws.current.onerror = (error: Event) => console.error("Erro no WebSocket:", error)
 
     ws.current.onmessage = (event) => {
       const data = JSON.parse(event.data)
-      console.log("Mensagem do backend:", data)
 
-      // A MÁGICA ACONTECE AQUI:
-      // O backend manda a mensagem, e nós usamos as funções de estado do SEU CÓDIGO para atualizar a tela.
+      // 🔍 LOGS TEMPORÁRIOS DE DEBUG
+      console.log("📩 Mensagem recebida do backend:", data)
+
+      if (data.type === "identificacao.result") {
+        console.log("➡️ Tipo identificação:", data.status, "Aluno:", data.aluno)
+      }
+
       switch (data.type) {
         case "status.leitor":
           setReaderStatus(data.status === "conectado" ? "connected" : "disconnected")
           break
-        
+
         case "identificacao.result":
           const studentData = data.aluno as Student
           setCurrentStudent(studentData)
@@ -79,7 +81,7 @@ export default function DashboardPage() {
             playSound("somSucesso")
             if (studentData) {
               setRecentWithdrawals(prev => [{
-                name: studentData.nome_completo, // Usando 'name' para consistência com sua interface
+                name: studentData.nome_completo,
                 turma: studentData.turma,
                 time: new Date().toLocaleTimeString('pt-BR'),
               }, ...prev.slice(0, 4)])
@@ -87,9 +89,8 @@ export default function DashboardPage() {
           } else if (data.status === "JÁ RETIROU") {
             setBiometricState("warning")
             playSound("somAviso")
-          } else {
-            setBiometricState("error")
-            playSound("somErro")
+          } else if (data.status === "NAO_ENCONTRADO") {
+            setBiometricState("waiting")
           }
           break
       }
@@ -102,8 +103,6 @@ export default function DashboardPage() {
     }
   }, [token, isLoading, router])
 
-  // --- FUNÇÕES VISUAIS DO SEU ARQUIVO (100% MANTIDAS) ---
-  // Note que elas agora usam os dados reais vindos do `currentStudent`
   const getStateIcon = () => {
      switch (biometricState) {
       case "success":
@@ -124,14 +123,7 @@ export default function DashboardPage() {
             <p className="text-lg text-gray-500">{currentStudent?.turma}</p>
           </div>
         )
-      case "error":
-        return (
-          <div className="flex flex-col items-center">
-            <XCircle className="h-16 w-16 text-red-500" />
-            <p className="mt-4 text-xl font-semibold text-red-600">DIGITAL NÃO RECONHECIDA</p>
-            <p className="text-lg text-gray-500 mt-2">Tente novamente</p>
-          </div>
-        )
+      // --- CASE DE ERROR/NOT_FOUND REMOVIDO ---
       case "waiting":
       default:
         return (
@@ -147,12 +139,11 @@ export default function DashboardPage() {
     return <div className="min-h-screen flex items-center justify-center">Carregando...</div>
   }
   
-  // --- SEU LAYOUT VISUAL 100% PRESERVADO ---
   return (
     <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
+      {/* --- ÁUDIO DE ERRO REMOVIDO --- */}
       <audio id="somSucesso" src="/sounds/success.mp3" preload="auto"></audio>
       <audio id="somAviso" src="/sounds/warning.mp3" preload="auto"></audio>
-      <audio id="somErro" src="/sounds/error.mp3" preload="auto"></audio>
 
       <main className="flex-1 p-6">
         <div className="flex justify-between items-center mb-6">
@@ -183,7 +174,6 @@ export default function DashboardPage() {
                 ) : (
                     recentWithdrawals.map((withdrawal, index) => (
                         <div key={index} className="flex flex-col space-y-1 pb-3 border-b last:border-b-0">
-                            {/* Usando 'name' como no seu arquivo original */}
                             <span className="font-medium text-sm text-foreground">{withdrawal.name}</span>
                             <span className="text-xs text-muted-foreground">
                                 {withdrawal.turma} - {withdrawal.time}

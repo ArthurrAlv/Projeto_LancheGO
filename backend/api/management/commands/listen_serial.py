@@ -8,11 +8,12 @@ from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from api.models import Aluno, Digital, RegistroRetirada
 from api.serializers import AlunoSerializer
-from datetime import date, datetime
+from datetime import date, datetime, time as dtime
 
 # ⚠️ ATENÇÃO: Altere esta porta para a porta COM correta do seu dispositivo! ⚠️
-SERIAL_PORT = 'COM3' # <--- MUDE AQUI PARA A PORTA QUE VOCÊ ENCONTROU
+SERIAL_PORT = 'COM3'  # <--- MUDE AQUI PARA A PORTA QUE VOCÊ ENCONTROU
 BAUD_RATE = 115200
+
 
 class Command(BaseCommand):
     help = 'Listen to serial port for biometric scanner data'
@@ -39,38 +40,17 @@ class Command(BaseCommand):
                     if ser.in_waiting > 0:
                         line = ser.readline().decode('utf-8').strip()
                         if line:
-                            # self.stdout.write(f'Recebido do ESP: {line}') # opcional
-
-                            message_payload = {}
-                            if line.startswith('MATCH:'):
-                                message_payload = {
-                                    'type': 'identificacao.result',
-                                    'status': 'MATCH',
-                                    'message': line,
-                                }
-                            elif line == 'NAO_ENCONTRADO':
-                                message_payload = {
-                                    'type': 'identificacao.result',
-                                    'status': 'NAO_ENCONTRADO',
-                                    'message': line,
-                                }
-
-                            # Enviar apenas se tiver payload relevante
-                            if message_payload:
-                                async_to_sync(channel_layer.group_send)(
-                                    'serial_com',
-                                    {
-                                        'type': 'serial.message',
-                                        'payload': message_payload,
-                                    }
-                                )
+                            # Somente processa a linha → process_serial_data define a mensagem correta
+                            self.process_serial_data(line, channel_layer)
 
                     time.sleep(0.1)
 
                 ser.close()
 
             except serial.SerialException:
-                self.stdout.write(self.style.ERROR(f'Não foi possível conectar a {SERIAL_PORT}. Tentando novamente em 5 segundos...'))
+                self.stdout.write(self.style.ERROR(
+                    f'Não foi possível conectar a {SERIAL_PORT}. Tentando novamente em 5 segundos...'
+                ))
 
                 # Pega o channel_layer aqui também para enviar o status de desconectado
                 channel_layer = get_channel_layer()
@@ -83,6 +63,7 @@ class Command(BaseCommand):
 
     def process_serial_data(self, data, channel_layer):
         message_to_send = None
+
         if data.startswith('MATCH:'):
             try:
                 sensor_id = int(data.split(':')[1])
@@ -91,49 +72,66 @@ class Command(BaseCommand):
                 if digital.aluno:
                     aluno = digital.aluno
 
-                    # --- LÓGICA DE RESET CORRIGIDA ---
                     agora = datetime.now().time()
                     hoje = date.today()
 
                     # Define os períodos
                     periodo_manha = RegistroRetirada.objects.filter(
-                        aluno=aluno, 
+                        aluno=aluno,
                         data_retirada__date=hoje,
-                        data_retirada__time__lt=time(12, 0) # Antes do meio-dia
+                        data_retirada__time__lt=dtime(12, 0)  # Antes do meio-dia
                     )
                     periodo_tarde = RegistroRetirada.objects.filter(
                         aluno=aluno,
                         data_retirada__date=hoje,
-                        data_retirada__time__gte=time(12, 0) # Depois do meio-dia
+                        data_retirada__time__gte=dtime(12, 0)  # Depois do meio-dia
                     )
 
                     ja_retirou_hoje = False
-                    if agora < time(12, 0): # Se for de manhã
+                    if agora < dtime(12, 0):  # Se for de manhã
                         if periodo_manha.exists():
                             ja_retirou_hoje = True
-                    else: # Se for de tarde/noite
+                    else:  # Se for de tarde/noite
                         if periodo_tarde.exists():
                             ja_retirou_hoje = True
-                    # --- FIM DA LÓGICA CORRIGIDA ---
 
                     aluno_data = AlunoSerializer(aluno).data
 
                     if ja_retirou_hoje:
-                        message_to_send = {'type': 'identificacao.result', 'status': 'JÁ RETIROU', 'aluno': aluno_data}
+                        message_to_send = {
+                            'type': 'identificacao.result',
+                            'status': 'JÁ RETIROU',
+                            'aluno': aluno_data
+                        }
                     else:
                         RegistroRetirada.objects.create(aluno=aluno)
-                        message_to_send = {'type': 'identificacao.result', 'status': 'LIBERADO', 'aluno': aluno_data}
+                        message_to_send = {
+                            'type': 'identificacao.result',
+                            'status': 'LIBERADO',
+                            'aluno': aluno_data
+                        }
                 else:
-                    message_to_send = {'type': 'identificacao.result', 'status': 'NAO ENCONTRADO', 'aluno': None}
+                    message_to_send = {
+                        'type': 'identificacao.result',
+                        'status': 'NAO_ENCONTRADO',
+                        'aluno': None
+                    }
 
             except (Digital.DoesNotExist, ValueError):
-                message_to_send = {'type': 'identificacao.result', 'status': 'NAO ENCONTRADO', 'aluno': None}
+                message_to_send = {
+                    'type': 'identificacao.result',
+                    'status': 'NAO_ENCONTRADO',
+                    'aluno': None
+                }
 
-        # ... (o resto da função continua igual para NAO ENCONTRADO, INFO, CADASTRO_OK, etc.)
-        elif data == 'NAO ENCONTRADO':
-            message_to_send = {'type': 'identificacao.result', 'status': 'NAO ENCONTRADO', 'aluno': None}
+        elif data == 'NAO_ENCONTRADO':
+            message_to_send = {
+                'type': 'identificacao.result',
+                'status': 'NAO_ENCONTRADO',
+                'aluno': None
+            }
 
-        # --- LÓGICA ADICIONADA PARA O CADASTRO ---
+        # --- Feedbacks de cadastro ---
         elif data.startswith('INFO:'):
             feedback_message = data.split(':', 1)[1].strip()
             message_to_send = {'type': 'cadastro.feedback', 'message': feedback_message}
@@ -148,11 +146,11 @@ class Command(BaseCommand):
         elif data.startswith('CADASTRO_ERRO:'):
             error_message = data.split(':', 1)[1].strip()
             message_to_send = {'type': 'cadastro.error', 'message': error_message}
-        # --- FIM DA LÓGICA ADICIONADA ---
 
         else:
             message_to_send = {'type': 'hardware.info', 'data': data}
 
+        # Envia a mensagem para o grupo certo
         if message_to_send:
             async_to_sync(channel_layer.group_send)(
                 'hardware_updates',
