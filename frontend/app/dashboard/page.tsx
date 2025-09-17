@@ -43,6 +43,27 @@ export default function DashboardPage() {
     }
   }
 
+  // 1️⃣ Desbloqueio do áudio
+  useEffect(() => {
+    const unlockAudio = () => {
+      const audios = document.querySelectorAll('audio') as NodeListOf<HTMLAudioElement>
+      audios.forEach(audio => {
+        audio.play().then(() => audio.pause()).catch(() => {})
+        audio.currentTime = 0
+      })
+      document.removeEventListener('click', unlockAudio)
+      document.removeEventListener('touchstart', unlockAudio)
+    }
+
+    document.addEventListener('click', unlockAudio)
+    document.addEventListener('touchstart', unlockAudio)
+
+    return () => {
+      document.removeEventListener('click', unlockAudio)
+      document.removeEventListener('touchstart', unlockAudio)
+    }
+  }, [])
+
   useEffect(() => {
     if (isLoading) return;
     if (!token) {
