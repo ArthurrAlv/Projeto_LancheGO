@@ -4,7 +4,7 @@ import serial
 import time
 
 # ⚠️ MUITO IMPORTANTE: Verifique se esta porta é a mesma do seu script listen_serial.py
-SERIAL_PORT = 'COM5' # <--- CONFIRME SE ESTA É A PORTA CORRETA
+SERIAL_PORT = 'COM3' # <--- CONFIRME SE ESTA É A PORTA CORRETA
 BAUD_RATE = 115200
 
 def send_command_to_hardware(command):

@@ -64,7 +64,7 @@ export default function StudentsPage() {
   const setupWebSocket = () => {
     if (ws.current && ws.current.readyState === WebSocket.OPEN) return
 
-    const wsUrl = "ws://127.0.0.1:8000/ws/hardware/"
+    const wsUrl = "ws://127.0.0.1:8000/ws/hardware/dashboard_group/"
     ws.current = new WebSocket(wsUrl)
 
     ws.current.onmessage = (event) => {
@@ -252,7 +252,7 @@ export default function StudentsPage() {
                            {student.digitais_count === 1 && (
                             <>
                               <Badge className="bg-yellow-500 hover:bg-yellow-600">Parcial</Badge>
-                              <AlertTriangle className="ml-2 h-4 w-4 text-yellow-500" title="Apenas uma digital cadastrada"/>
+                              <AlertTriangle className="ml-2 h-4 w-4 text-yellow-500" aria-label="Apenas uma digital cadastrada" />
                             </>
                           )}
                            {student.digitais_count >= 2 && (
