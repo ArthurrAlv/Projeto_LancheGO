@@ -40,12 +40,20 @@ export default function StudentsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [turmaFilter, setTurmaFilter] = useState("Todas as Turmas")
+  
+  // Estados para os modais
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-  const [editingStudent, setEditingStudent] = useState<Student | null>(null)
+  
+  // Estados para o fluxo de ADIÇÃO
+  const [addModalStep, setAddModalStep] = useState(1);
+  const [newlyCreatedStudent, setNewlyCreatedStudent] = useState<Student | null>(null);
   const [newStudent, setNewStudent] = useState({ nome_completo: "", matricula: "", turma: "" })
+  
+  // Estado para o fluxo de EDIÇÃO
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null)
 
-  // --- NOVOS ESTADOS PARA CADASTRO DE DIGITAL ---
+  // Estados para o cadastro de digital
   const [enrollmentStatus, setEnrollmentStatus] = useState("Aguardando início...")
   const [isEnrolling, setIsEnrolling] = useState(false)
   const ws = useRef<WebSocket | null>(null)
@@ -53,7 +61,6 @@ export default function StudentsPage() {
   const { token } = useAuth()
   const router = useRouter()
 
-  // --- WEBSOCKET PARA OUVIR O HARDWARE ---
   const setupWebSocket = () => {
     if (ws.current && ws.current.readyState === WebSocket.OPEN) return
 
@@ -61,23 +68,26 @@ export default function StudentsPage() {
     ws.current = new WebSocket(wsUrl)
 
     ws.current.onmessage = (event) => {
-      const data = JSON.parse(event.data)
+      const data = JSON.parse(event.data);
+      const activeStudent = editingStudent || newlyCreatedStudent;
+
       switch (data.type) {
         case "cadastro.feedback":
-          setEnrollmentStatus(data.message)
-          break
+          setEnrollmentStatus(data.message);
+          break;
         case "cadastro.success":
-          handleAssociateFingerprint(data.sensor_id)
-          break
+          if (activeStudent) {
+            handleAssociateFingerprint(data.sensor_id, activeStudent.id);
+          }
+          break;
         case "cadastro.error":
           setEnrollmentStatus(`Erro: ${data.message}`)
           setTimeout(() => setIsEnrolling(false), 3000)
-          break
+          break;
       }
     }
   }
 
-  // --- API: LISTA ALUNOS ---
   const fetchStudents = async () => {
     if (!token) return
     setIsLoading(true)
@@ -95,17 +105,16 @@ export default function StudentsPage() {
     fetchStudents()
   }, [token])
 
-  // --- CRUD ---
-  const handleAddNewStudent = async () => {
+  const handleAddNewStudentAndProceed = async () => {
     try {
-      await apiClient.post("/alunos/", newStudent)
-      fetchStudents()
-      setIsAddModalOpen(false)
-      setNewStudent({ nome_completo: "", matricula: "", turma: "" })
+      const response = await apiClient.post("/alunos/", newStudent);
+      setNewlyCreatedStudent(response.data);
+      fetchStudents();
+      setAddModalStep(2);
     } catch (error) {
-      console.error("Falha ao adicionar aluno:", error)
+      console.error("Falha ao adicionar aluno:", error);
     }
-  }
+  };
 
   const handleUpdateStudent = async () => {
     if (!editingStudent) return
@@ -131,43 +140,43 @@ export default function StudentsPage() {
     }
   }
 
-  // --- DIGITAL ---
-  const handleAssociateFingerprint = async (sensorId: number) => {
-    if (!editingStudent) return
-    setEnrollmentStatus("Digital lida com sucesso! Associando ao aluno...")
+  const handleAssociateFingerprint = async (sensorId: number, studentId: number) => {
+    setEnrollmentStatus("Digital lida com sucesso! Associando ao aluno...");
     try {
       await apiClient.post("/digitais/associar/", {
         sensor_id: sensorId,
-        aluno_id: editingStudent.id,
-      })
-      setEnrollmentStatus("Digital associada com sucesso!")
-      await fetchStudents()
+        aluno_id: studentId,
+      });
+      setEnrollmentStatus("Digital associada com sucesso!");
+      await fetchStudents();
       setTimeout(() => {
-        setIsEnrolling(false)
-        setIsEditModalOpen(false)
-      }, 2000)
+        setIsEnrolling(false);
+        // Fecha qualquer modal que esteja aberto
+        setIsEditModalOpen(false);
+        setIsAddModalOpen(false);
+      }, 2000);
     } catch (error) {
-      console.error("Falha ao associar digital:", error)
-      setEnrollmentStatus("Erro ao associar digital no sistema.")
+      console.error("Falha ao associar digital:", error);
+      setEnrollmentStatus("Erro ao associar digital no sistema.");
     }
   }
 
-  const handleStartEnrollment = async () => {
-    if (!editingStudent) return
-    setIsEnrolling(true)
-    setEnrollmentStatus("Iniciando modo de cadastro...")
-    setupWebSocket()
+  const handleStartEnrollment = async (student: Student | null) => {
+    if (!student) return;
+
+    setIsEnrolling(true);
+    setEnrollmentStatus("Iniciando modo de cadastro...");
+    setupWebSocket();
     try {
-      await apiClient.post("/hardware/start-enroll/")
-      setEnrollmentStatus("Comando enviado. Siga as instruções no leitor.")
+      await apiClient.post("/hardware/start-enroll/");
+      setEnrollmentStatus("Comando enviado. Siga as instruções no leitor.");
     } catch (error) {
-      console.error("Falha ao iniciar modo de cadastro:", error)
-      setEnrollmentStatus("Erro de comunicação com o hardware.")
-      setTimeout(() => setIsEnrolling(false), 3000)
+      console.error("Falha ao iniciar modo de cadastro:", error);
+      setEnrollmentStatus("Erro de comunicação com o hardware.");
+      setTimeout(() => setIsEnrolling(false), 3000);
     }
   }
 
-  // --- FILTRO ---
   const filteredStudents = students.filter((student) => {
     const nameMatch = student.nome_completo.toLowerCase().includes(searchTerm.toLowerCase())
     const turmaMatch = turmaFilter === "Todas as Turmas" || student.turma === turmaFilter
@@ -239,14 +248,14 @@ export default function StudentsPage() {
                       <TableCell>{student.turma}</TableCell>
                       <TableCell>
                         <div className="flex items-center">
-                          {student.digitais_count === 0 && <Badge variant="secondary">Inativo</Badge>}
-                          {student.digitais_count === 1 && (
+                           {student.digitais_count === 0 && <Badge variant="secondary">Inativo</Badge>}
+                           {student.digitais_count === 1 && (
                             <>
-                              <Badge className="bg-green-500 hover:bg-green-600">Ativo</Badge>
-                              <AlertTriangle className="ml-2 h-4 w-4 text-yellow-500" />
+                              <Badge className="bg-yellow-500 hover:bg-yellow-600">Parcial</Badge>
+                              <AlertTriangle className="ml-2 h-4 w-4 text-yellow-500" title="Apenas uma digital cadastrada"/>
                             </>
                           )}
-                          {student.digitais_count === 2 && (
+                           {student.digitais_count >= 2 && (
                             <Badge className="bg-green-500 hover:bg-green-600">Ativo</Badge>
                           )}
                         </div>
@@ -302,111 +311,65 @@ export default function StudentsPage() {
         </Card>
       </div>
 
-      {/* --- MODAL ADIÇÃO --- */}
-      <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+      {/* --- MODAL ADIÇÃO EM ETAPAS --- */}
+      <Dialog open={isAddModalOpen} onOpenChange={(isOpen) => {
+        if (!isOpen) {
+          setTimeout(() => {
+            setAddModalStep(1);
+            setNewlyCreatedStudent(null);
+            setNewStudent({ nome_completo: "", matricula: "", turma: "" });
+            setIsEnrolling(false);
+          }, 300);
+        }
+        setIsAddModalOpen(isOpen);
+      }}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Adicionar Novo Aluno</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="add-name">Nome Completo</Label>
-              <Input
-                id="add-name"
-                value={newStudent.nome_completo}
-                onChange={(e) => setNewStudent({ ...newStudent, nome_completo: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="add-matricula">Matrícula</Label>
-              <Input
-                id="add-matricula"
-                value={newStudent.matricula}
-                onChange={(e) => setNewStudent({ ...newStudent, matricula: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="add-turma">Turma</Label>
-              <Select onValueChange={(value) => setNewStudent({ ...newStudent, turma: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a turma" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1E">1º Ano Eletro</SelectItem>
-                  <SelectItem value="2E">2º Ano Eletro</SelectItem>
-                  <SelectItem value="3E">3º Ano Eletro</SelectItem>
-                  <SelectItem value="1I">1º Ano Info</SelectItem>
-                  <SelectItem value="2I">2º Ano Info</SelectItem>
-                  <SelectItem value="3I">3º Ano Info</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleAddNewStudent}>Salvar Aluno</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          {addModalStep === 1 && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Adicionar Novo Aluno - Etapa 1 de 2</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="add-name">Nome Completo</Label>
+                  <Input id="add-name" value={newStudent.nome_completo} onChange={(e) => setNewStudent({ ...newStudent, nome_completo: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="add-matricula">Matrícula</Label>
+                  <Input id="add-matricula" value={newStudent.matricula} onChange={(e) => setNewStudent({ ...newStudent, matricula: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="add-turma">Turma</Label>
+                  <Select onValueChange={(value) => setNewStudent({ ...newStudent, turma: value })}>
+                    <SelectTrigger><SelectValue placeholder="Selecione a turma" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1E">1º Ano Eletro</SelectItem>
+                      <SelectItem value="2E">2º Ano Eletro</SelectItem>
+                      <SelectItem value="3E">3º Ano Eletro</SelectItem>
+                      <SelectItem value="1I">1º Ano Info</SelectItem>
+                      <SelectItem value="2I">2º Ano Info</SelectItem>
+                      <SelectItem value="3I">3º Ano Info</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>Cancelar</Button>
+                <Button onClick={handleAddNewStudentAndProceed}>Continuar para Digital</Button>
+              </DialogFooter>
+            </>
+          )}
 
-      {/* --- MODAL EDIÇÃO --- */}
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Editar Aluno</DialogTitle>
-          </DialogHeader>
-          {editingStudent && (
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-name">Nome Completo</Label>
-                <Input
-                  id="edit-name"
-                  value={editingStudent.nome_completo}
-                  onChange={(e) =>
-                    setEditingStudent({ ...editingStudent, nome_completo: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-matricula">Matrícula</Label>
-                <Input
-                  id="edit-matricula"
-                  value={editingStudent.matricula}
-                  onChange={(e) =>
-                    setEditingStudent({ ...editingStudent, matricula: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-turma">Turma</Label>
-                <Select
-                  value={editingStudent.turma}
-                  onValueChange={(value) =>
-                    setEditingStudent({ ...editingStudent, turma: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a turma" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1E">1º Ano Eletro</SelectItem>
-                    <SelectItem value="2E">2º Ano Eletro</SelectItem>
-                    <SelectItem value="3E">3º Ano Eletro</SelectItem>
-                    <SelectItem value="1I">1º Ano Info</SelectItem>
-                    <SelectItem value="2I">2º Ano Info</SelectItem>
-                    <SelectItem value="3I">3º Ano Info</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* --- NOVA SEÇÃO DE DIGITAIS --- */}
-              <div className="space-y-4 pt-4">
-                <h3 className="font-semibold">Gerenciamento de Digitais</h3>
+          {addModalStep === 2 && newlyCreatedStudent && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Digital para: {newlyCreatedStudent.nome_completo}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-4 flex flex-col items-center justify-center min-h-[150px]">
                 {!isEnrolling ? (
-                  <Button onClick={handleStartEnrollment} variant="outline">
-                    <Fingerprint className="mr-2 h-4 w-4" /> Iniciar Cadastro de Digital
+                  <Button onClick={() => handleStartEnrollment(newlyCreatedStudent)} variant="outline" size="lg">
+                    <Fingerprint className="mr-2 h-5 w-5" />
+                    Cadastrar Digital
                   </Button>
                 ) : (
                   <div className="flex items-center space-x-2 bg-muted p-3 rounded-lg">
@@ -417,14 +380,94 @@ export default function StudentsPage() {
                   </div>
                 )}
               </div>
-            </div>
+              <DialogFooter>
+                <Button onClick={() => setIsAddModalOpen(false)}>Concluir</Button>
+              </DialogFooter>
+            </>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleUpdateStudent}>Salvar Alterações</Button>
-          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* --- MODAL EDIÇÃO --- */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Editar Aluno</DialogTitle>
+          </DialogHeader>
+          {editingStudent && (
+            <>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-name">Nome Completo</Label>
+                  <Input
+                    id="edit-name"
+                    value={editingStudent.nome_completo}
+                    onChange={(e) =>
+                      setEditingStudent({ ...editingStudent, nome_completo: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-matricula">Matrícula</Label>
+                  <Input
+                    id="edit-matricula"
+                    value={editingStudent.matricula}
+                    onChange={(e) =>
+                      setEditingStudent({ ...editingStudent, matricula: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-turma">Turma</Label>
+                  <Select
+                    value={editingStudent.turma}
+                    onValueChange={(value) =>
+                      setEditingStudent({ ...editingStudent, turma: value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a turma" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1E">1º Ano Eletro</SelectItem>
+                      <SelectItem value="2E">2º Ano Eletro</SelectItem>
+                      <SelectItem value="3E">3º Ano Eletro</SelectItem>
+                      <SelectItem value="1I">1º Ano Info</SelectItem>
+                      <SelectItem value="2I">2º Ano Info</SelectItem>
+                      <SelectItem value="3I">3º Ano Info</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-4 pt-4 border-t">
+                  <h3 className="font-semibold">Gerenciamento de Digitais</h3>
+                  {editingStudent.digitais_count < 2 ? (
+                    !isEnrolling ? (
+                      <Button onClick={() => handleStartEnrollment(editingStudent)} variant="outline">
+                        <Fingerprint className="mr-2 h-4 w-4" />
+                        {`Cadastrar ${editingStudent.digitais_count === 0 ? '1ª' : '2ª'} Digital`}
+                      </Button>
+                    ) : (
+                      <div className="flex items-center space-x-2 bg-muted p-3 rounded-lg">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <span className="text-sm font-medium text-muted-foreground">
+                          {enrollmentStatus}
+                        </span>
+                      </div>
+                    )
+                  ) : (
+                    <Badge variant="secondary">Limite de 2 digitais atingido</Badge>
+                  )}
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleUpdateStudent}>Salvar Alterações</Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>
