@@ -71,7 +71,7 @@ export default function DashboardPage() {
       return;
     }
 
-    const wsUrl = "ws://127.0.0.1:8000/ws/hardware/"
+    const wsUrl = "ws://127.0.0.1:8000/ws/hardware/dashboard/";
     ws.current = new WebSocket(wsUrl)
 
     ws.current.onopen = () => console.log("WebSocket conectado!")
@@ -81,17 +81,23 @@ export default function DashboardPage() {
     ws.current.onmessage = (event) => {
       const data = JSON.parse(event.data)
 
-      // 🔍 LOGS TEMPORÁRIOS DE DEBUG
-      console.log("📩 Mensagem recebida do backend:", data)
-
       if (data.type === "identificacao.result") {
         console.log("➡️ Tipo identificação:", data.status, "Aluno:", data.aluno)
       }
 
       switch (data.type) {
         case "status.leitor":
-          setReaderStatus(data.status === "conectado" ? "connected" : "disconnected")
-          break
+            if (data.type === "status.leitor") {
+                const newStatus = data.status === "conectado" ? "connected" : "disconnected";
+                setReaderStatus(prev => {
+                    if (prev !== newStatus) {
+                        console.log("📩 Status do leitor mudou para:", newStatus);
+                        return newStatus;
+                    }
+                    return prev;
+                });
+            }
+            break
 
         case "identificacao.result":
           const studentData = data.aluno as Student

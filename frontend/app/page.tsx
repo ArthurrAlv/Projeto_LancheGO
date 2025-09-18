@@ -1,4 +1,4 @@
-// app/page.tsx (Versão Final Unificada)
+// app/page.tsx (Versão Final Unificada Corrigida)
 "use client"
 
 import type React from "react"
@@ -27,7 +27,7 @@ export default function LoginPage() {
 
   // --- WEBSOCKET PARA LOGIN BIOMÉTRICO ---
   useEffect(() => {
-    const wsUrl = "ws://127.0.0.1:8000/ws/hardware/"
+    const wsUrl = "ws://127.0.0.1:8000/ws/hardware/login/";
     ws.current = new WebSocket(wsUrl)
 
     ws.current.onopen = () => {
@@ -36,18 +36,13 @@ export default function LoginPage() {
     }
 
     ws.current.onmessage = (event) => {
-      console.log("DADO BRUTO RECEBIDO:", event.data); // <-- Adicione para depurar
-      const data = JSON.parse(event.data);
+      console.log("DADO BRUTO RECEBIDO:", event.data)
+      const data = JSON.parse(event.data)
       
-      // O IF agora vai funcionar!
-      if (
-        data.type === "identificacao.result" &&
-        data.status === "MATCH" 
-        // a condição 'data.aluno === null' parece específica, 
-        // verifique se ela é realmente necessária ou se pode ser removida para o login do operador.
-      ) {
-        const sensorId = parseInt(data.message.split(":")[1]);
-        handleBiometricLogin(sensorId);
+      // ✅ Correção: agora só reage ao login de operador
+      if (data.type === "operador.login" && data.status === "MATCH") {
+        console.log("✅ Digital de operador recebida, iniciando login...")
+        handleBiometricLogin(data.sensor_id)
       }
     }
 
@@ -152,9 +147,7 @@ export default function LoginPage() {
               <p className="text-sm text-muted-foreground">Ou realize o login com a digital do operador</p>
             </div>
 
-            <div
-              className="bg-muted rounded-lg p-4 cursor-pointer hover:bg-muted/80 transition-colors"
-            >
+            <div className="bg-muted rounded-lg p-4">
               <div className="flex items-center justify-center space-x-2">
                 {isReading && <Loader2 className="h-4 w-4 animate-spin" />}
                 <span className="text-sm text-muted-foreground">{biometricStatus}</span>

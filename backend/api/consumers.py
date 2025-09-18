@@ -1,32 +1,36 @@
-# api/consumers.py
+# api/consumers.py (VERSÃO COM ROTEAMENTO)
 
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 
-class SerialConsumer(AsyncWebsocketConsumer):
+class HardwareConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        # PASSO 1: Usar o mesmo nome de grupo do listen_serial
-        self.group_name = 'hardware_updates' 
+        # Pega o nome da "sala" a partir da URL (ex: 'login' ou 'dashboard')
+        self.room_name = self.scope['url_route']['kwargs']['room_name']
         
+        # Define o grupo do canal com base no nome da sala
+        if self.room_name == 'login':
+            self.group_name = 'login_group'
+        else: # 'dashboard' ou qualquer outro
+            self.group_name = 'dashboard_group'
+
+        # Adiciona o canal ao grupo correspondente
         await self.channel_layer.group_add(
             self.group_name,
             self.channel_name
         )
         await self.accept()
-        print(f"✅ WebSocket CONECTADO e no grupo '{self.group_name}'")
+        print(f"✅ WebSocket CONECTADO. Cliente entrou no grupo '{self.group_name}'")
 
     async def disconnect(self, close_code):
         await self.channel_layer.group_discard(
             self.group_name,
             self.channel_name
         )
-        print("❌ WebSocket DESCONECTADO")
+        print(f"❌ WebSocket DESCONECTADO do grupo '{self.group_name}'")
 
-    # PASSO 2: Renomear método para 'broadcast_message' e corrigir o payload
     async def broadcast_message(self, event):
-        # A chave enviada pelo listen_serial é 'message'
         message_data = event['message']
-
-        # Envia a mensagem diretamente para o navegador (JavaScript)
         await self.send(text_data=json.dumps(message_data))
-        print(f"✅ Payload enviado para o JS: {message_data}")
+        # O print foi removido daqui para evitar poluir o log do Daphne. 
+        # Os prints úteis agora estão no listen_serial.py

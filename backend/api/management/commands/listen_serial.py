@@ -1,100 +1,56 @@
-# api/management/commands/listen_serial.py
+# api/management/commands/listen_serial.py (VERSÃO AJUSTADA PARA MAIS FLUIDEZ)
 
 import serial
 import time
-import json
 from django.core.management.base import BaseCommand
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
-from api.models import Aluno, Digital, RegistroRetirada
+from api.models import Aluno, Digital, RegistroRetirada, Servidor
 from api.serializers import AlunoSerializer
-from datetime import date, datetime, time as dtime
+from datetime import time as dtime
+from django.utils import timezone
 
-# ⚠️ ATENÇÃO: Altere esta porta para a porta COM correta do seu dispositivo! ⚠️
-SERIAL_PORT = 'COM3'  # <--- MUDE AQUI PARA A PORTA QUE VOCÊ ENCONTROU
+SERIAL_PORT = 'COM3'
 BAUD_RATE = 115200
-
 
 class Command(BaseCommand):
     help = 'Listen to serial port for biometric scanner data'
 
-    def handle(self, *args, **kwargs):
-        self.stdout.write(f'Iniciando escuta na porta serial {SERIAL_PORT}...')
-
-        while True:
-            try:
-                # Tenta conectar à porta serial
-                ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
-                self.stdout.write(self.style.SUCCESS(f'Conectado com sucesso a {SERIAL_PORT}'))
-
-                # Só pega o channel_layer APÓS conectar com sucesso
-                channel_layer = get_channel_layer()
-
-                # Informa o frontend que o leitor está conectado
-                async_to_sync(channel_layer.group_send)(
-                    'hardware_updates',
-                    {'type': 'broadcast_message', 'message': {'type': 'status.leitor', 'status': 'conectado'}}
-                )
-
-                while ser.is_open:
-                    if ser.in_waiting > 0:
-                        line = ser.readline().decode('utf-8').strip()
-                        if line:
-                            # Somente processa a linha → process_serial_data define a mensagem correta
-                            self.process_serial_data(line, channel_layer)
-
-                    time.sleep(0.1)
-
-                ser.close()
-
-            except serial.SerialException:
-                self.stdout.write(self.style.ERROR(
-                    f'Não foi possível conectar a {SERIAL_PORT}. Tentando novamente em 5 segundos...'
-                ))
-
-                # Pega o channel_layer aqui também para enviar o status de desconectado
-                channel_layer = get_channel_layer()
-                if channel_layer:
-                    async_to_sync(channel_layer.group_send)(
-                        'hardware_updates',
-                        {'type': 'broadcast_message', 'message': {'type': 'status.leitor', 'status': 'desconectado'}}
-                    )
-                time.sleep(5)
-
     def process_serial_data(self, data, channel_layer):
         message_to_send = None
+        target_group = 'dashboard_group'  # padrão: envia para o dashboard
 
         if data.startswith('MATCH:'):
             try:
                 sensor_id = int(data.split(':')[1])
-                digital = Digital.objects.select_related('aluno').get(sensor_id=sensor_id)
+                self.stdout.write(f"-> MATCH recebido. ID do sensor: {sensor_id}")
+                digital = Digital.objects.select_related('aluno', 'servidor__user').get(sensor_id=sensor_id)
 
-                if digital.aluno:
+                if digital.servidor:
+                    self.stdout.write(f"-> Digital de OPERADOR: {digital.servidor.user.username}")
+                    target_group = 'login_group'
+                    message_to_send = {
+                        'type': 'operador.login',
+                        'status': 'MATCH',
+                        'sensor_id': sensor_id
+                    }
+
+                elif digital.aluno:
                     aluno = digital.aluno
+                    agora_local = timezone.localtime(timezone.now())
+                    hoje = agora_local.date()
+                    agora_time = agora_local.time()
 
-                    agora = datetime.now().time()
-                    hoje = date.today()
-
-                    # Define os períodos
                     periodo_manha = RegistroRetirada.objects.filter(
-                        aluno=aluno,
-                        data_retirada__date=hoje,
-                        data_retirada__time__lt=dtime(12, 0)  # Antes do meio-dia
+                        aluno=aluno, data_retirada__date=hoje,
+                        data_retirada__time__lt=dtime(12, 0)
                     )
                     periodo_tarde = RegistroRetirada.objects.filter(
-                        aluno=aluno,
-                        data_retirada__date=hoje,
-                        data_retirada__time__gte=dtime(12, 0)  # Depois do meio-dia
+                        aluno=aluno, data_retirada__date=hoje,
+                        data_retirada__time__gte=dtime(12, 0)
                     )
 
-                    ja_retirou_hoje = False
-                    if agora < dtime(12, 0):  # Se for de manhã
-                        if periodo_manha.exists():
-                            ja_retirou_hoje = True
-                    else:  # Se for de tarde/noite
-                        if periodo_tarde.exists():
-                            ja_retirou_hoje = True
-
+                    ja_retirou_hoje = periodo_manha.exists() if agora_time < dtime(12, 0) else periodo_tarde.exists()
                     aluno_data = AlunoSerializer(aluno).data
 
                     if ja_retirou_hoje:
@@ -116,8 +72,7 @@ class Command(BaseCommand):
                         'status': 'NAO_ENCONTRADO',
                         'aluno': None
                     }
-
-            except (Digital.DoesNotExist, ValueError):
+            except Digital.DoesNotExist:
                 message_to_send = {
                     'type': 'identificacao.result',
                     'status': 'NAO_ENCONTRADO',
@@ -131,28 +86,80 @@ class Command(BaseCommand):
                 'aluno': None
             }
 
-        # --- Feedbacks de cadastro ---
-        elif data.startswith('INFO:'):
-            feedback_message = data.split(':', 1)[1].strip()
-            message_to_send = {'type': 'cadastro.feedback', 'message': feedback_message}
+        elif data.startswith(('INFO:', 'CADASTRO_OK:', 'CADASTRO_ERRO:')):
+            target_group = 'dashboard_group'
+            if data.startswith('INFO:'):
+                message_to_send = {
+                    'type': 'cadastro.feedback',
+                    'message': data.split(':', 1)[1].strip()
+                }
+            elif data.startswith('CADASTRO_OK:'):
+                message_to_send = {
+                    'type': 'cadastro.success',
+                    'sensor_id': int(data.split(':')[1])
+                }
+            elif data.startswith('CADASTRO_ERRO:'):
+                message_to_send = {
+                    'type': 'cadastro.error',
+                    'message': data.split(':', 1)[1].strip()
+                }
 
-        elif data.startswith('CADASTRO_OK:'):
-            try:
-                sensor_id = int(data.split(':')[1])
-                message_to_send = {'type': 'cadastro.success', 'sensor_id': sensor_id}
-            except (ValueError, IndexError):
-                message_to_send = {'type': 'cadastro.error', 'message': 'ID de sensor inválido recebido.'}
-
-        elif data.startswith('CADASTRO_ERRO:'):
-            error_message = data.split(':', 1)[1].strip()
-            message_to_send = {'type': 'cadastro.error', 'message': error_message}
-
-        else:
-            message_to_send = {'type': 'hardware.info', 'data': data}
-
-        # Envia a mensagem para o grupo certo
         if message_to_send:
+            self.stdout.write(
+                f"-> Enviando para '{target_group}': {message_to_send.get('status') or message_to_send.get('type')}"
+            )
             async_to_sync(channel_layer.group_send)(
-                'hardware_updates',
+                target_group,
                 {'type': 'broadcast_message', 'message': message_to_send}
             )
+
+    def handle(self, *args, **kwargs):
+        self.stdout.write(f'Iniciando escuta na porta serial {SERIAL_PORT}...')
+        while True:
+            try:
+                ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
+                self.stdout.write(self.style.SUCCESS(f'Conectado com sucesso a {SERIAL_PORT}'))
+                channel_layer = get_channel_layer()
+
+                # Ao conectar, avisa AMBAS as possíveis páginas
+                for group_name in ['login_group', 'dashboard_group']:
+                    async_to_sync(channel_layer.group_send)(
+                        group_name,
+                        {'type': 'broadcast_message', 'message': {'type': 'status.leitor', 'status': 'conectado'}}
+                    )
+
+                last_heartbeat_time = time.time()
+
+                while ser.is_open:
+                    line = ser.readline().decode('utf-8').strip()
+                    if line:
+                        self.process_serial_data(line, channel_layer)
+
+                    # Heartbeat a cada 5s → mantém o dashboard atualizado.
+                    # ⚠️ No frontend, ignore status "conectado" repetidos.
+                    current_time = time.time()
+                    if current_time - last_heartbeat_time > 5:
+                        async_to_sync(channel_layer.group_send)(
+                            'dashboard_group',
+                            {'type': 'broadcast_message', 'message': {'type': 'status.leitor', 'status': 'conectado'}}
+                        )
+                        last_heartbeat_time = current_time
+
+                ser.close()
+
+            except serial.SerialException:
+                self.stdout.write(self.style.ERROR(
+                    f'Não foi possível conectar a {SERIAL_PORT}. Tentando novamente...'
+                ))
+                channel_layer = get_channel_layer()
+                if channel_layer:
+                    for group_name in ['login_group', 'dashboard_group']:
+                        async_to_sync(channel_layer.group_send)(
+                            group_name,
+                            {'type': 'broadcast_message', 'message': {'type': 'status.leitor', 'status': 'desconectado'}}
+                        )
+                time.sleep(1)  # pausa menor → mais fluido
+
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f'Ocorreu um erro inesperado: {e}'))
+                time.sleep(1)  # pausa menor → não trava leitura
