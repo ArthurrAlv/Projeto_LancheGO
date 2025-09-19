@@ -1,16 +1,35 @@
 // app/students/page.tsx
-"use client"
+"use client";
 
-import { useState, useEffect, useRef } from "react"
-import { useRouter } from "next/navigation"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,11 +40,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import { Plus, Pencil, Trash2, Fingerprint, Search, AlertTriangle, Loader2 } from "lucide-react"
+} from "@/components/ui/alert-dialog";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Fingerprint,
+  Search,
+  AlertTriangle,
+  Loader2,
+} from "lucide-react";
 
-import apiClient from "@/lib/api"
-import { useAuth } from "@/context/AuthContext"
+import apiClient from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 interface Student {
   id: number;
@@ -36,36 +63,43 @@ interface Student {
 }
 
 export default function StudentsPage() {
-  const [students, setStudents] = useState<Student[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [turmaFilter, setTurmaFilter] = useState("Todas as Turmas")
-  
+  const [students, setStudents] = useState<Student[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [turmaFilter, setTurmaFilter] = useState("Todas as Turmas");
+
   // Estados para os modais
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-  
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
   // Estados para o fluxo de ADIÇÃO
   const [addModalStep, setAddModalStep] = useState(1);
-  const [newlyCreatedStudent, setNewlyCreatedStudent] = useState<Student | null>(null);
-  const [newStudent, setNewStudent] = useState({ nome_completo: "", matricula: "", turma: "" })
-  
+  const [newlyCreatedStudent, setNewlyCreatedStudent] =
+    useState<Student | null>(null);
+  const [newStudent, setNewStudent] = useState({
+    nome_completo: "",
+    matricula: "",
+    turma: "",
+  });
+
   // Estado para o fluxo de EDIÇÃO
-  const [editingStudent, setEditingStudent] = useState<Student | null>(null)
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
 
   // Estados para o cadastro de digital
-  const [enrollmentStatus, setEnrollmentStatus] = useState("Aguardando início...")
-  const [isEnrolling, setIsEnrolling] = useState(false)
-  const ws = useRef<WebSocket | null>(null)
+  const [enrollmentStatus, setEnrollmentStatus] = useState(
+    "Aguardando início..."
+  );
+  const [isEnrolling, setIsEnrolling] = useState(false);
+  const ws = useRef<WebSocket | null>(null);
 
-  const { token } = useAuth()
-  const router = useRouter()
+  const { token } = useAuth();
+  const router = useRouter();
 
   const setupWebSocket = () => {
-    if (ws.current && ws.current.readyState === WebSocket.OPEN) return
+    if (ws.current && ws.current.readyState === WebSocket.OPEN) return;
 
-    const wsUrl = "ws://127.0.0.1:8000/ws/hardware/dashboard_group/"
-    ws.current = new WebSocket(wsUrl)
+    const wsUrl = "ws://127.0.0.1:8000/ws/hardware/dashboard_group/";
+    ws.current = new WebSocket(wsUrl);
 
     ws.current.onmessage = (event) => {
       const data = JSON.parse(event.data);
@@ -81,29 +115,29 @@ export default function StudentsPage() {
           }
           break;
         case "cadastro.error":
-          setEnrollmentStatus(`Erro: ${data.message}`)
-          setTimeout(() => setIsEnrolling(false), 3000)
+          setEnrollmentStatus(`Erro: ${data.message}`);
+          setTimeout(() => setIsEnrolling(false), 3000);
           break;
       }
-    }
-  }
+    };
+  };
 
   const fetchStudents = async () => {
-    if (!token) return
-    setIsLoading(true)
+    if (!token) return;
+    setIsLoading(true);
     try {
-      const response = await apiClient.get("/alunos/")
-      setStudents(response.data)
+      const response = await apiClient.get("/alunos/");
+      setStudents(response.data);
     } catch (error) {
-      console.error("Falha ao buscar alunos:", error)
+      console.error("Falha ao buscar alunos:", error);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchStudents()
-  }, [token])
+    fetchStudents();
+  }, [token]);
 
   const handleAddNewStudentAndProceed = async () => {
     try {
@@ -117,30 +151,49 @@ export default function StudentsPage() {
   };
 
   const handleUpdateStudent = async () => {
-    if (!editingStudent) return
+    if (!editingStudent) return;
     try {
       await apiClient.put(`/alunos/${editingStudent.id}/`, {
         nome_completo: editingStudent.nome_completo,
         matricula: editingStudent.matricula,
         turma: editingStudent.turma,
-      })
-      fetchStudents()
-      setIsEditModalOpen(false)
+      });
+      fetchStudents();
+      setIsEditModalOpen(false);
     } catch (error) {
-      console.error("Falha ao atualizar aluno:", error)
+      console.error("Falha ao atualizar aluno:", error);
     }
-  }
+  };
 
   const handleDeleteStudent = async (studentId: number) => {
     try {
-      await apiClient.delete(`/alunos/${studentId}/`)
-      fetchStudents()
+      await apiClient.delete(`/alunos/${studentId}/`);
+      fetchStudents();
     } catch (error) {
-      console.error("Falha ao deletar aluno:", error)
+      console.error("Falha ao deletar aluno:", error);
     }
-  }
+  };
 
-  const handleAssociateFingerprint = async (sensorId: number, studentId: number) => {
+  const handleDeleteFingerprints = async (studentId: number) => {
+    if (!studentId) return;
+
+    try {
+      await apiClient.post(`/alunos/${studentId}/delete-fingerprints/`);
+      // Mostra um feedback temporário
+      setEditingStudent((prev) =>
+        prev ? { ...prev, digitais_count: 0 } : null
+      );
+      fetchStudents(); // Recarrega a lista para ter certeza
+    } catch (error) {
+      console.error("Falha ao deletar digitais:", error);
+      // Aqui você pode adicionar um toast ou alerta de erro
+    }
+  };
+
+  const handleAssociateFingerprint = async (
+    sensorId: number,
+    studentId: number
+  ) => {
     setEnrollmentStatus("Digital lida com sucesso! Associando ao aluno...");
     try {
       await apiClient.post("/digitais/associar/", {
@@ -159,14 +212,14 @@ export default function StudentsPage() {
       console.error("Falha ao associar digital:", error);
       setEnrollmentStatus("Erro ao associar digital no sistema.");
     }
-  }
+  };
 
   const handleStartEnrollment = async (student: Student | null) => {
     if (!student) return;
 
     setIsEnrolling(true);
     setEnrollmentStatus("Conectando ao hardware...");
-    
+
     // Garante que a conexão WebSocket esteja pronta antes de enviar o comando
     setupWebSocket();
 
@@ -174,27 +227,34 @@ export default function StudentsPage() {
     setTimeout(() => {
       if (ws.current && ws.current.readyState === WebSocket.OPEN) {
         console.log("Enviando comando de cadastro via WebSocket...");
-        
+
         // A MUDANÇA PRINCIPAL: Envia o comando via WebSocket
-        ws.current.send(JSON.stringify({
-          'type': 'hardware.command', // Novo tipo de mensagem
-          'command': 'CADASTRO'      // Comando que o backend vai receber
-        }));
-        
+        ws.current.send(
+          JSON.stringify({
+            type: "hardware.command", // Novo tipo de mensagem
+            command: "CADASTRO", // Comando que o backend vai receber
+          })
+        );
+
         setEnrollmentStatus("Comando enviado. Siga as instruções no leitor.");
       } else {
-        console.error("WebSocket não está conectado. Não foi possível enviar o comando.");
+        console.error(
+          "WebSocket não está conectado. Não foi possível enviar o comando."
+        );
         setEnrollmentStatus("Erro: Falha na conexão com o hardware.");
         setTimeout(() => setIsEnrolling(false), 3000);
       }
     }, 500); // Meio segundo de espera para a conexão se estabelecer
-  }
+  };
 
   const filteredStudents = students.filter((student) => {
-    const nameMatch = student.nome_completo.toLowerCase().includes(searchTerm.toLowerCase())
-    const turmaMatch = turmaFilter === "Todas as Turmas" || student.turma === turmaFilter
-    return nameMatch && turmaMatch
-  })
+    const nameMatch = student.nome_completo
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+    const turmaMatch =
+      turmaFilter === "Todas as Turmas" || student.turma === turmaFilter;
+    return nameMatch && turmaMatch;
+  });
 
   return (
     <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
@@ -219,12 +279,17 @@ export default function StudentsPage() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <Select onValueChange={setTurmaFilter} defaultValue="Todas as Turmas">
+              <Select
+                onValueChange={setTurmaFilter}
+                defaultValue="Todas as Turmas"
+              >
                 <SelectTrigger className="w-[200px]">
                   <SelectValue placeholder="Filtrar por turma" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Todas as Turmas">Todas as Turmas</SelectItem>
+                  <SelectItem value="Todas as Turmas">
+                    Todas as Turmas
+                  </SelectItem>
                   <SelectItem value="1E">1º Ano Eletro</SelectItem>
                   <SelectItem value="2E">2º Ano Eletro</SelectItem>
                   <SelectItem value="3E">3º Ano Eletro</SelectItem>
@@ -256,20 +321,31 @@ export default function StudentsPage() {
                 ) : (
                   filteredStudents.map((student) => (
                     <TableRow key={student.id}>
-                      <TableCell className="font-medium">{student.nome_completo}</TableCell>
+                      <TableCell className="font-medium">
+                        {student.nome_completo}
+                      </TableCell>
                       <TableCell>{student.matricula}</TableCell>
                       <TableCell>{student.turma}</TableCell>
                       <TableCell>
                         <div className="flex items-center">
-                           {student.digitais_count === 0 && <Badge variant="secondary">Inativo</Badge>}
-                           {student.digitais_count === 1 && (
+                          {student.digitais_count === 0 && (
+                            <Badge variant="secondary">Inativo</Badge>
+                          )}
+                          {student.digitais_count === 1 && (
                             <>
-                              <Badge className="bg-yellow-500 hover:bg-yellow-600">Parcial</Badge>
-                              <AlertTriangle className="ml-2 h-4 w-4 text-yellow-500" aria-label="Apenas uma digital cadastrada" />
+                              <Badge className="bg-yellow-500 hover:bg-yellow-600">
+                                Parcial
+                              </Badge>
+                              <AlertTriangle
+                                className="ml-2 h-4 w-4 text-yellow-500"
+                                aria-label="Apenas uma digital cadastrada"
+                              />
                             </>
                           )}
-                           {student.digitais_count >= 2 && (
-                            <Badge className="bg-green-500 hover:bg-green-600">Ativo</Badge>
+                          {student.digitais_count >= 2 && (
+                            <Badge className="bg-green-500 hover:bg-green-600">
+                              Ativo
+                            </Badge>
                           )}
                         </div>
                       </TableCell>
@@ -279,8 +355,8 @@ export default function StudentsPage() {
                             variant="ghost"
                             size="icon"
                             onClick={() => {
-                              setEditingStudent(student)
-                              setIsEditModalOpen(true)
+                              setEditingStudent(student);
+                              setIsEditModalOpen(true);
                             }}
                           >
                             <Pencil className="h-4 w-4" />
@@ -297,15 +373,21 @@ export default function StudentsPage() {
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
-                                <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+                                <AlertDialogTitle>
+                                  Confirmar Exclusão
+                                </AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  Tem certeza que deseja excluir o aluno "{student.nome_completo}"? Esta ação não pode ser desfeita.
+                                  Tem certeza que deseja excluir o aluno "
+                                  {student.nome_completo}"? Esta ação não pode
+                                  ser desfeita.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
                                 <AlertDialogAction
-                                  onClick={() => handleDeleteStudent(student.id)}
+                                  onClick={() =>
+                                    handleDeleteStudent(student.id)
+                                  }
                                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                 >
                                   Excluir
@@ -324,83 +406,6 @@ export default function StudentsPage() {
         </Card>
       </div>
 
-      {/* --- MODAL ADIÇÃO EM ETAPAS --- */}
-      <Dialog open={isAddModalOpen} onOpenChange={(isOpen) => {
-        if (!isOpen) {
-          setTimeout(() => {
-            setAddModalStep(1);
-            setNewlyCreatedStudent(null);
-            setNewStudent({ nome_completo: "", matricula: "", turma: "" });
-            setIsEnrolling(false);
-          }, 300);
-        }
-        setIsAddModalOpen(isOpen);
-      }}>
-        <DialogContent>
-          {addModalStep === 1 && (
-            <>
-              <DialogHeader>
-                <DialogTitle>Adicionar Novo Aluno - Etapa 1 de 2</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="add-name">Nome Completo</Label>
-                  <Input id="add-name" value={newStudent.nome_completo} onChange={(e) => setNewStudent({ ...newStudent, nome_completo: e.target.value })} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="add-matricula">Matrícula</Label>
-                  <Input id="add-matricula" value={newStudent.matricula} onChange={(e) => setNewStudent({ ...newStudent, matricula: e.target.value })} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="add-turma">Turma</Label>
-                  <Select onValueChange={(value) => setNewStudent({ ...newStudent, turma: value })}>
-                    <SelectTrigger><SelectValue placeholder="Selecione a turma" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1E">1º Ano Eletro</SelectItem>
-                      <SelectItem value="2E">2º Ano Eletro</SelectItem>
-                      <SelectItem value="3E">3º Ano Eletro</SelectItem>
-                      <SelectItem value="1I">1º Ano Info</SelectItem>
-                      <SelectItem value="2I">2º Ano Info</SelectItem>
-                      <SelectItem value="3I">3º Ano Info</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>Cancelar</Button>
-                <Button onClick={handleAddNewStudentAndProceed}>Continuar para Digital</Button>
-              </DialogFooter>
-            </>
-          )}
-
-          {addModalStep === 2 && newlyCreatedStudent && (
-            <>
-              <DialogHeader>
-                <DialogTitle>Digital para: {newlyCreatedStudent.nome_completo}</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 pt-4 flex flex-col items-center justify-center min-h-[150px]">
-                {!isEnrolling ? (
-                  <Button onClick={() => handleStartEnrollment(newlyCreatedStudent)} variant="outline" size="lg">
-                    <Fingerprint className="mr-2 h-5 w-5" />
-                    Cadastrar Digital
-                  </Button>
-                ) : (
-                  <div className="flex items-center space-x-2 bg-muted p-3 rounded-lg">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    <span className="text-sm font-medium text-muted-foreground">
-                      {enrollmentStatus}
-                    </span>
-                  </div>
-                )}
-              </div>
-              <DialogFooter>
-                <Button onClick={() => setIsAddModalOpen(false)}>Concluir</Button>
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-
       {/* --- MODAL EDIÇÃO --- */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent className="sm:max-w-[600px]">
@@ -416,7 +421,10 @@ export default function StudentsPage() {
                     id="edit-name"
                     value={editingStudent.nome_completo}
                     onChange={(e) =>
-                      setEditingStudent({ ...editingStudent, nome_completo: e.target.value })
+                      setEditingStudent({
+                        ...editingStudent,
+                        nome_completo: e.target.value,
+                      })
                     }
                   />
                 </div>
@@ -426,7 +434,10 @@ export default function StudentsPage() {
                     id="edit-matricula"
                     value={editingStudent.matricula}
                     onChange={(e) =>
-                      setEditingStudent({ ...editingStudent, matricula: e.target.value })
+                      setEditingStudent({
+                        ...editingStudent,
+                        matricula: e.target.value,
+                      })
                     }
                   />
                 </div>
@@ -453,12 +464,55 @@ export default function StudentsPage() {
                 </div>
 
                 <div className="space-y-4 pt-4 border-t">
-                  <h3 className="font-semibold">Gerenciamento de Digitais</h3>
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-semibold">Gerenciamento de Digitais</h3>
+
+                    {/* --- NOVO BOTÃO DE EXCLUSÃO --- */}
+                    {editingStudent.digitais_count > 0 && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" size="sm">
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Apagar Digitais
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              Confirmar Exclusão
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Tem certeza que deseja apagar TODAS as digitais de{" "}
+                              {editingStudent.nome_completo}? O aluno precisará
+                              ser cadastrado novamente.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() =>
+                                handleDeleteFingerprints(editingStudent.id)
+                              }
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Sim, Apagar Tudo
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                  </div>
+
                   {editingStudent.digitais_count < 2 ? (
                     !isEnrolling ? (
-                      <Button onClick={() => handleStartEnrollment(editingStudent)} variant="outline">
+                      <Button
+                        onClick={() => handleStartEnrollment(editingStudent)}
+                        variant="outline"
+                      >
                         <Fingerprint className="mr-2 h-4 w-4" />
-                        {`Cadastrar ${editingStudent.digitais_count === 0 ? '1ª' : '2ª'} Digital`}
+                        {`Cadastrar ${
+                          editingStudent.digitais_count === 0 ? "1ª" : "2ª"
+                        } Digital`}
                       </Button>
                     ) : (
                       <div className="flex items-center space-x-2 bg-muted p-3 rounded-lg">
@@ -469,12 +523,17 @@ export default function StudentsPage() {
                       </div>
                     )
                   ) : (
-                    <Badge variant="secondary">Limite de 2 digitais atingido</Badge>
+                    <Badge variant="secondary">
+                      Limite de 2 digitais atingido
+                    </Badge>
                   )}
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsEditModalOpen(false)}
+                >
                   Cancelar
                 </Button>
                 <Button onClick={handleUpdateStudent}>Salvar Alterações</Button>
@@ -484,5 +543,5 @@ export default function StudentsPage() {
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }

@@ -10,6 +10,8 @@ from .models import Digital
 from . import hardware_manager
 from .models import Digital
 from rest_framework_simplejwt.tokens import RefreshToken
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 # ---- Views para Alunos ----
 # Permite Listar e Criar alunos (apenas para usuários autenticados)
@@ -131,3 +133,70 @@ class FingerprintLoginView(APIView):
                 return Response({"error": "Digital não associada a um operador"}, status=status.HTTP_404_NOT_FOUND)
         except Digital.DoesNotExist:
             return Response({"error": "Digital não encontrada"}, status=status.HTTP_404_NOT_FOUND)
+        
+
+class DeleteStudentFingerprintsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        aluno_id = kwargs.get('aluno_id')
+        if not aluno_id:
+            return Response({"error": "ID do aluno não fornecido."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            aluno = Aluno.objects.get(pk=aluno_id)
+        except Aluno.DoesNotExist:
+            return Response({"error": "Aluno não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Encontra todas as digitais do aluno ANTES de deletar
+        digitais_para_deletar = list(aluno.digitais.all())
+
+        if not digitais_para_deletar:
+            return Response({"message": "Aluno não possui digitais cadastradas."}, status=status.HTTP_200_OK)
+
+        channel_layer = get_channel_layer()
+
+        # Envia comando para o hardware para cada digital
+        for digital in digitais_para_deletar:
+            command = f"DELETAR:{digital.sensor_id}"
+            async_to_sync(channel_layer.group_send)(
+                'serial_worker_group',
+                {
+                    'type': 'execute.command',
+                    'command': command
+                }
+            )
+        
+        # Deleta as digitais do banco de dados
+        aluno.digitais.all().delete()
+
+        return Response({"message": "Comandos para deletar digitais enviados e registros removidos."}, status=status.HTTP_200_OK)
+    
+
+class DeleteServerFingerprintsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        servidor_id = kwargs.get('servidor_id')
+        if not servidor_id:
+            return Response({"error": "ID do servidor não fornecido."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            servidor = Servidor.objects.get(pk=servidor_id)
+        except Servidor.DoesNotExist:
+            return Response({"error": "Servidor não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+        digitais_para_deletar = list(servidor.digitais.all())
+        if not digitais_para_deletar:
+            return Response({"message": "Servidor não possui digitais cadastradas."}, status=status.HTTP_200_OK)
+
+        channel_layer = get_channel_layer()
+        for digital in digitais_para_deletar:
+            command = f"DELETAR:{digital.sensor_id}"
+            async_to_sync(channel_layer.group_send)(
+                'serial_worker_group',
+                {'type': 'execute.command', 'command': command}
+            )
+        
+        servidor.digitais.all().delete()
+        return Response({"message": "Comandos de exclusão enviados e digitais removidas."}, status=status.HTTP_200_OK)

@@ -2,7 +2,7 @@
 
 from django.urls import path
 from . import views
-from .views import AlunoListCreate, AlunoRetrieveUpdateDestroy, AssociateFingerprintView, FingerprintLoginView 
+from .views import AlunoListCreate, AlunoRetrieveUpdateDestroy, AssociateFingerprintView, FingerprintLoginView, DeleteStudentFingerprintsView, DeleteServerFingerprintsView
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -17,11 +17,13 @@ urlpatterns = [
     # Rotas para Alunos (CRUD completo)
     path('alunos/', views.AlunoListCreate.as_view(), name='aluno-list-create'),
     path('alunos/<int:pk>/', views.AlunoRetrieveUpdateDestroy.as_view(), name='aluno-detail'),
+    path('alunos/<int:aluno_id>/delete-fingerprints/', views.DeleteStudentFingerprintsView.as_view(), name='delete-student-fingerprints'),
 
     # Rotas para Servidores (CRUD completo para Admins)
     path('servidores/', views.ServidorList.as_view(), name='servidor-list'),
     path('servidores/register/', views.ServidorRegisterView.as_view(), name='servidor-register'),
     path('servidores/<int:pk>/', views.ServidorRetrieveUpdateDestroy.as_view(), name='servidor-detail'),
+    path('servidores/<int:servidor_id>/delete-fingerprints/', views.DeleteServerFingerprintsView.as_view(), name='delete-server-fingerprints'),
 
     # ROTAS PARA COMANDOS DO HARDWARE
     # path('hardware/start-enroll/', views.StartEnrollView.as_view(), name='start-enroll'),
