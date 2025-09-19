@@ -165,16 +165,29 @@ export default function StudentsPage() {
     if (!student) return;
 
     setIsEnrolling(true);
-    setEnrollmentStatus("Iniciando modo de cadastro...");
+    setEnrollmentStatus("Conectando ao hardware...");
+    
+    // Garante que a conexão WebSocket esteja pronta antes de enviar o comando
     setupWebSocket();
-    try {
-      await apiClient.post("/hardware/start-enroll/");
-      setEnrollmentStatus("Comando enviado. Siga as instruções no leitor.");
-    } catch (error) {
-      console.error("Falha ao iniciar modo de cadastro:", error);
-      setEnrollmentStatus("Erro de comunicação com o hardware.");
-      setTimeout(() => setIsEnrolling(false), 3000);
-    }
+
+    // Pequeno atraso para garantir que a conexão foi estabelecida
+    setTimeout(() => {
+      if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+        console.log("Enviando comando de cadastro via WebSocket...");
+        
+        // A MUDANÇA PRINCIPAL: Envia o comando via WebSocket
+        ws.current.send(JSON.stringify({
+          'type': 'hardware.command', // Novo tipo de mensagem
+          'command': 'CADASTRO'      // Comando que o backend vai receber
+        }));
+        
+        setEnrollmentStatus("Comando enviado. Siga as instruções no leitor.");
+      } else {
+        console.error("WebSocket não está conectado. Não foi possível enviar o comando.");
+        setEnrollmentStatus("Erro: Falha na conexão com o hardware.");
+        setTimeout(() => setIsEnrolling(false), 3000);
+      }
+    }, 500); // Meio segundo de espera para a conexão se estabelecer
   }
 
   const filteredStudents = students.filter((student) => {

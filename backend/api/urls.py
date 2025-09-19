@@ -24,7 +24,7 @@ urlpatterns = [
     path('servidores/<int:pk>/', views.ServidorRetrieveUpdateDestroy.as_view(), name='servidor-detail'),
 
     # ROTAS PARA COMANDOS DO HARDWARE
-    path('hardware/start-enroll/', views.StartEnrollView.as_view(), name='start-enroll'),
+    # path('hardware/start-enroll/', views.StartEnrollView.as_view(), name='start-enroll'),
     path('hardware/delete-fingerprint/', views.DeleteFingerprintView.as_view(), name='delete-fingerprint'),
     path('digitais/associar/', AssociateFingerprintView.as_view(), name='associate-fingerprint'),
 ]

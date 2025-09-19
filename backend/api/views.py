@@ -46,18 +46,20 @@ class ServidorRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
 
 
 # ---- VIEWS PARA COMANDOS DO HARDWARE ----
-class StartEnrollView(APIView):
-    """
-    View para iniciar o modo de cadastro no hardware.
-    """
-    permission_classes = [permissions.IsAuthenticated]
 
-    def post(self, request, *args, **kwargs):
-        success = hardware_manager.send_command_to_hardware("CADASTRO")
-        if success:
-            return Response({"message": "Comando de cadastro enviado com sucesso."}, status=status.HTTP_200_OK)
-        else:
-            return Response({"error": "Falha ao se comunicar com o hardware."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+# class StartEnrollView(APIView):
+#     """
+#     View para iniciar o modo de cadastro no hardware.
+#     """
+#     permission_classes = [permissions.IsAuthenticated]
+
+#     def post(self, request, *args, **kwargs):
+#         success = hardware_manager.send_command_to_hardware("CADASTRO")
+#         if success:
+#             return Response({"message": "Comando de cadastro enviado com sucesso."}, status=status.HTTP_200_OK)
+#         else:
+#             return Response({"error": "Falha ao se comunicar com o hardware."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class DeleteFingerprintView(APIView):
     """
