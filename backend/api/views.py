@@ -35,7 +35,7 @@ class ServidorRegisterView(generics.CreateAPIView):
 
 # Permite que um admin liste todos os Servidores
 class ServidorList(generics.ListAPIView):
-    queryset = Servidor.objects.all()
+    queryset = Servidor.objects.filter(user__is_superuser=False)
     serializer_class = ServidorSerializer
     permission_classes = [permissions.IsAdminUser]
 
