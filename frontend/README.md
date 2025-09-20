@@ -53,8 +53,9 @@
 # Correções futuras...
     - Não deixar apagar servidor sem deixar ao menos um(o superuser e mais um).
     - Adicinar "digite a senha novamente" pra comparar.
-    - Corrigir Status do Leitor.
     - Implementar apagar em lote após filtragem.
+    - Corrigir Status do Leitor 'students_page'
+
 
 # Correções de Layout importante! - Cores mais destacadas na Distribuição de Lanches
 
