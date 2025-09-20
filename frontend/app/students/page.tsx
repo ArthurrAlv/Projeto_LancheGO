@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Usb, PlugZap } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -67,6 +68,9 @@ export default function StudentsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [turmaFilter, setTurmaFilter] = useState("Todas as Turmas");
+  const [readerStatus, setReaderStatus] = useState<
+    "connected" | "disconnected"
+  >("disconnected");
 
   // Estados para os modais
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -117,6 +121,13 @@ export default function StudentsPage() {
         case "cadastro.error":
           setEnrollmentStatus(`Erro: ${data.message}`);
           setTimeout(() => setIsEnrolling(false), 3000);
+          break;
+
+        // <coloque aqui>
+        case "status.leitor":
+          const newStatus =
+            data.status === "conectado" ? "connected" : "disconnected";
+          setReaderStatus((prev) => (prev !== newStatus ? newStatus : prev));
           break;
       }
     };
@@ -261,11 +272,31 @@ export default function StudentsPage() {
       <div className="flex-1 p-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold">Gestão de Alunos</h1>
-          <Button onClick={() => setIsAddModalOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Adicionar Novo Aluno
-          </Button>
+          <div className="flex items-center space-x-4">
+            <div
+              className={`flex items-center space-x-2 p-2 rounded-lg border text-sm font-medium ${
+                readerStatus === "connected"
+                  ? "bg-green-100 text-green-800 border-green-200"
+                  : "bg-red-100 text-red-800 border-red-200"
+              }`}
+            >
+              {readerStatus === "connected" ? (
+                <Usb className="h-4 w-4" />
+              ) : (
+                <PlugZap className="h-4 w-4" />
+              )}
+              <span>
+                {readerStatus === "connected" ? "Leitor Conectado" : "Leitor Desconectado"}
+              </span>
+            </div>
+
+            <Button onClick={() => setIsAddModalOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Adicionar Novo Aluno
+            </Button>
+          </div>
         </div>
+
 
         <Card>
           <CardHeader>

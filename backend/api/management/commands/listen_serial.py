@@ -94,7 +94,16 @@ class Command(BaseCommand):
             try:
                 ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=0.1)
                 self.stdout.write(self.style.SUCCESS(f'Conectado com sucesso a {SERIAL_PORT}'))
-                
+
+                # 🔔 Ao conectar, notifica login e dashboard
+                for group_name in ['login_group', 'dashboard_group']:
+                    await channel_layer.group_send(
+                        group_name,
+                        {'type': 'broadcast_message', 'message': {'type': 'status.leitor', 'status': 'conectado'}}
+                    )
+
+                last_heartbeat_time = asyncio.get_event_loop().time()
+
                 while True:
                     if ser.in_waiting > 0:
                         line = ser.readline().decode('utf-8').strip()
@@ -102,6 +111,16 @@ class Command(BaseCommand):
                             self.stdout.write(f'<< DADO DO HARDWARE: {line}')
                             await process_serial_data(line, channel_layer, self)
 
+                    # Heartbeat a cada 5s (só pro dashboard)
+                    current_time = asyncio.get_event_loop().time()
+                    if current_time - last_heartbeat_time > 5:
+                        await channel_layer.group_send(
+                            'dashboard_group',
+                            {'type': 'broadcast_message', 'message': {'type': 'status.leitor', 'status': 'conectado'}}
+                        )
+                        last_heartbeat_time = current_time
+
+                    # Verifica comandos recebidos
                     try:
                         message = await asyncio.wait_for(channel_layer.receive('serial_worker_channel'), timeout=0.01)
                         if message['type'] == 'execute.command':
@@ -112,10 +131,19 @@ class Command(BaseCommand):
                         pass
 
             except serial.SerialException:
-                self.stdout.write(self.style.ERROR(f'Falha ao conectar em {SERIAL_PORT}. Tentando novamente em 5s...'))
-                await asyncio.sleep(5)
+                self.stdout.write(self.style.ERROR(
+                    f'Não foi possível conectar a {SERIAL_PORT}. Tentando novamente...'
+                ))
+                if channel_layer:
+                    for group_name in ['login_group', 'dashboard_group']:
+                        await channel_layer.group_send(
+                            group_name,
+                            {'type': 'broadcast_message', 'message': {'type': 'status.leitor', 'status': 'desconectado'}}
+                        )
+                await asyncio.sleep(1)  # pausa menor → mais fluido
+
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f'Erro inesperado: {e}'))
+                self.stdout.write(self.style.ERROR(f'Ocorreu um erro inesperado: {e}'))
                 if ser and ser.is_open:
                     ser.close()
-                await asyncio.sleep(5)
+                await asyncio.sleep(1)  # pausa menor → não trava leitura

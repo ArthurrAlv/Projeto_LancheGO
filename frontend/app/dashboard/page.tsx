@@ -71,7 +71,7 @@ export default function DashboardPage() {
       return;
     }
 
-    const wsUrl = "ws://127.0.0.1:8000/ws/hardware/dashboard/";
+    const wsUrl = "ws://127.0.0.1:8000/ws/hardware/dashboard_group/";
     ws.current = new WebSocket(wsUrl)
 
     ws.current.onopen = () => console.log("WebSocket conectado!")
