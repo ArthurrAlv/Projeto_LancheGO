@@ -1,5 +1,13 @@
-# Erros que notei no processo de cadastro:
-    - Digital com falha ao associar. Desta forma há sucesso no dispositivo, mas não no vínculo da digital no bd. Isso é ruim devido ao fato da digital ficar "sem dono" e o site não conseguir acessa-la pra apagar. Vamoos ter que ver uma forma de resolver isso. Confira o log abaixo sobre o que eu falei:
+# Projeto LancheGO: Status de Desenvolvimento
+
+---
+
+## 🐞 Erros e Análises (21/09/2025)
+
+### **1. Falha ao associar digital**
+
+- **Problema:** Ao associar uma digital, o dispositivo registra a digital com sucesso, mas o vínculo com o usuário no banco de dados falha. Isso resulta em digitais "sem dono" que não podem ser apagadas via interface.
+- **Log de Erro:**
 
         page.tsx:170  POST http://127.0.0.1:8000/api/digitais/associar/ 500 (Internal Server Error)
         dispatchXhrRequest @ xhr.js:209
@@ -14,11 +22,17 @@
         ws.current.onmessage @ page.tsx:76Understand this error
         page.tsx:180 Falha ao associar digital: AxiosError {message: 'Request failed with status code 500', name: 'AxiosError', code: 'ERR_BAD_RESPONSE', config: {…}, request: XMLHttpRequest, …}
 
-        - Na página de Gestão de Servidores, ao fazer o cadastro da primeira digital o modal não fecha fecha como no do Aluno, até então tudo bem, eu preferi. Porém devido este fato, o botão não atualiza para Cadastrar 2º Digital, eu preciso fechar e ir na edição pra ver o botão mudar pra Cadastrar 2º Digital, e isso é ruim.
+- **Análise:** O erro `500 Internal Server Error` aponta para um problema no **backend (Django)**. A lógica de associação de digitais (provavelmente no endpoint `/api/digitais/associar/`) falha ao salvar a associação no banco de dados. Isso pode ser causado por um erro na manipulação da transação, uma restrição de chave estrangeira, ou um bug na lógica que vincula a digital ao servidor.
 
-    - Ao apagar todas as digitais dentro do modal(Editar Servidor) na página Gestão de Servidores o modal não atualiza. Deve ter relação com o erro acima.
+### **2. Problemas de atualização do modal em Gestão de Servidores**
 
-    - Em Adicionar Servidor não está disponivel a mesma funcionalidade que há em aluno; função de seguir pra o cadastro da digital. Neste mesmo local ao cadastrar com uma senha comum aparece um alerte: "Falha ao salvar servidor. Verifique se os dados estão corretos." porem não á regras enquanto a senha, deve adicionar(acho que há um padrão django pra simbolos, letras e número - confirme). Percebi que não te a ver com a senha, antes foi uma coincidência. Veja o log abaixo além do aler "Falha ao salvar servidor. Verifique se os dados estão corretos.":
+- **Problema:** Após cadastrar a primeira digital, o modal de edição não atualiza. É necessário fechá-lo e reabri-lo para que o botão "Cadastrar 2º Digital" apareça.
+- **Análise:** Trata-se de um problema no **frontend (React)**. O estado da interface (modal) não está sendo atualizado após o sucesso da operação de cadastro da digital. O `modal` precisa ser re-renderizado com as novas informações, o que exige um controle de estado eficiente.
+
+### **3. Falha ao cadastrar novo servidor**
+
+- **Problema:** Ao cadastrar um novo servidor na página "Adicionar Servidor", a operação falha, e o frontend exibe um alerta genérico.
+- **Log de Erro:**
 
         POST http://127.0.0.1:8000/api/servidores/register/ 500 (Internal Server Error)
         dispatchXhrRequest @ xhr.js:209
@@ -47,16 +61,56 @@
         page.tsx:131 Falha ao salvar servidor: AxiosError {message: 'Request failed with status code 500', name: 'AxiosError', code: 'ERR_BAD_RESPONSE', config: {…}, request: XMLHttpRequest, …}
 
 
-# Implementação após correções:
-    - Inserir tabela no bd. Ver uma foram mais prática.
+- **Análise:** Assim como na associação da digital, o erro `500` indica uma falha no **backend** ao processar a requisição `POST` para `/api/servidores/register/`. O problema não está relacionado à validação de senha no frontend, mas sim a uma exceção não tratada na lógica de registro do Django. Possíveis causas incluem validação falha no modelo, um campo obrigatório faltando ou um erro na transação de banco de dados.
 
-# Correções futuras...
-    - Não deixar apagar servidor sem deixar ao menos um(o superuser e mais um).
-    - Adicinar "digite a senha novamente" pra comparar.
-    - Implementar apagar em lote após filtragem.
-    - Corrigir Status do Leitor 'students_page'
+---
 
+## 🛠️ Próximas Implementações
 
-# Correções de Layout importante! - Cores mais destacadas na Distribuição de Lanches
+- [ ] **Importação de dados de alunos via planilha:**
+  - Desenvolver um processo para importar dados de alunos a partir de uma planilha, de forma recorrente.
+  - Implementar uma interface no frontend para que a planilha possa ser enviada ao sistema.
+  - Criar uma rotina no backend para ler a planilha, validar os dados e atualizar o banco de dados.
+  - O processo deve ser robusto para ser utilizado tanto no ambiente de desenvolvimento quanto em produção.
 
+- [ ] **Filtro de digitais:** Criar filtros para identificar servidores com `0 digitais` (Não Cadastradas) e `1 digital` (Parcialmente Cadastradas). O filtro deve persistir ao longo da navegação.
 
+---
+
+## 🐛 Correções Futuras
+
+- [ ] Impedir a exclusão de servidores se restarem apenas o superusuário e mais um.
+- [ ] Adicionar um campo de confirmação de senha (`"digite a senha novamente"`).
+- [ ] Implementar a exclusão em lote de servidores com base nos filtros.
+- [ ] Corrigir o indicador de status do leitor na página de Alunos.
+
+---
+
+## 🎨 Correções de Layout
+
+- [ ] Melhorar o contraste e destaque das cores na página de Distribuição de Lanches.
+
+---
+
+## ⚠️ Assuntos Importantes
+
+### **Processo do Redis**
+- **Sintoma:** O comando `redis-server` na linha de comando falha porque o Redis já está rodando como um serviço do Windows.
+- **Solução:** Em vez de iniciar o servidor manualmente, use o cliente `redis-cli.exe` para interagir com a instância que já está em execução. Verifique a porta com `netstat -ano | findstr 6379`.
+
+### **Gerenciamento de Processos**
+- **Dúvida:** Como rodar comandos de execução contínua (`listen_serial`) sem precisar ficar com o terminal aberto?
+- **Resposta:** Use um gerenciador de processos para rodar o comando em segundo plano. Opções incluem:
+  - **`tmux` ou `screen` (Linux/WSL):** Para manter a sessão ativa.
+  - **Serviço do Windows:** Para rodar a aplicação em segundo plano automaticamente.
+
+### **Funcionalidade de Apagar Digitais** 
+- **Necessidade:** Implementar a funcionalidade de apagar digitais, com opções para:
+  - Apagar **todas as digitais** (dentro do painel de superusuário).
+  - Apagar digitais **por filtro** (ex: por turma). --Pedir digital do servidor--
+
+### **Acesso ao Banco de Dados em Rede Local**
+- **Consideração:** O banco de dados precisará estar acessível na rede local, não apenas na máquina onde o servidor está rodando.
+- **Solução:**
+  - **Configure o banco de dados:** Use um banco de dados que suporte acesso em rede, como o PostgreSQL ou MySQL. Se usar o SQLite (padrão do Django), a abordagem é mais complexa e não recomendada para acesso remoto.
+  - **Ajuste o `settings.py`:** Edite a configuração `DATABASES` para apontar para o endereço IP da máquina do banco de dados na rede local, e não para `127.0.0.1`.

@@ -147,3 +147,4 @@ class Command(BaseCommand):
                 if ser and ser.is_open:
                     ser.close()
                 await asyncio.sleep(1)  # pausa menor → não trava leitura
+    
