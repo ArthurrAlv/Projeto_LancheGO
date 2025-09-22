@@ -1,8 +1,11 @@
-# api/serializers.py
+# api/serializers.py (VERSÃO CORRIGIDA E ROBUSTA)
 
 from rest_framework import serializers
 from django.contrib.auth.models import User
+from django.db import transaction
 from .models import Aluno, Servidor, Digital
+
+# --- SERIALIZERS EXISTENTES (SEM MUDANÇAS) ---
 
 class DigitalSerializer(serializers.ModelSerializer):
     class Meta:
@@ -19,15 +22,14 @@ class AlunoSerializer(serializers.ModelSerializer):
     def get_digitais_count(self, obj):
         return obj.digitais.count()
 
-# Serializer para o modelo User do Django
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'first_name']
+        fields = ['id', 'username'] # Removido first_name para consistência, nome_completo vem do Servidor
 
-# Serializer para o nosso modelo Servidor, incluindo os dados do User
+# Serializer para listar/detalhar Servidores
 class ServidorSerializer(serializers.ModelSerializer):
-    user = UserSerializer()
+    user = UserSerializer(read_only=True) # user é apenas para leitura aqui
     digitais_count = serializers.SerializerMethodField()
 
     class Meta:
@@ -37,23 +39,42 @@ class ServidorSerializer(serializers.ModelSerializer):
     def get_digitais_count(self, obj):
         return obj.digitais.count()
 
-# Serializer específico para criar novos Servidores (com senha)
+# --- SERIALIZER DE REGISTRO (VERSÃO CORRIGIDA) ---
+# Este serializer agora lida com a criação de um Servidor e seu User associado.
 class ServidorRegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, required=True)
-    username = serializers.CharField(source='user.username', required=True)
-    nome_completo = serializers.CharField(source='user.first_name', required=True)
+    # Campos que vamos receber do frontend. Nenhum deles pertence diretamente ao modelo Servidor,
+    # por isso são 'write_only'.
+    username = serializers.CharField(write_only=True, required=True)
+    password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
 
     class Meta:
-        model = User
-        fields = ('username', 'password', 'nome_completo')
+        model = Servidor
+        # O 'nome_completo' é o único campo que de fato pertence ao modelo Servidor
+        fields = ('nome_completo', 'username', 'password')
 
+    def validate_username(self, value):
+        """ Valida se o nome de usuário já existe para evitar erros de banco de dados. """
+        if User.objects.filter(username__iexact=value).exists():
+            raise serializers.ValidationError("Este nome de usuário já está em uso.")
+        return value
+
+    @transaction.atomic # Garante que ou tudo é criado com sucesso, ou nada é salvo.
     def create(self, validated_data):
-        user_data = validated_data.pop('user')
+        """
+        Cria um novo objeto User e depois um objeto Servidor associado a ele.
+        """
+        # Cria o usuário com o método seguro que criptografa a senha
         user = User.objects.create_user(
-            username=user_data['username'],
-            password=validated_data['password'],
-            first_name=user_data['first_name']
+            username=validated_data['username'],
+            password=validated_data['password']
         )
-        # Linkamos o Servidor ao User recém-criado
-        Servidor.objects.create(user=user, nome_completo=user_data['first_name'])
-        return user
+        # Define o usuário como staff para que possa acessar o admin do Django, se necessário
+        user.is_staff = True
+        user.save()
+
+        # Cria o servidor, associando o usuário recém-criado
+        servidor = Servidor.objects.create(
+            user=user,
+            nome_completo=validated_data['nome_completo']
+        )
+        return servidor

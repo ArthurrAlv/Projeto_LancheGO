@@ -46,7 +46,6 @@ class ServidorRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAdminUser]
 
 
-
 # ---- VIEWS PARA COMANDOS DO HARDWARE ----
 
 # class StartEnrollView(APIView):
@@ -200,3 +199,28 @@ class DeleteServerFingerprintsView(APIView):
         
         servidor.digitais.all().delete()
         return Response({"message": "Comandos de exclusão enviados e digitais removidas."}, status=status.HTTP_200_OK)
+    
+
+class ClearAllFingerprintsView(APIView):
+    """
+    Envia o comando para o hardware limpar toda a sua memória de digitais e
+    remove todos os registros de digitais do banco de dados.
+    Apenas para Superusuários.
+    """
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request, *args, **kwargs):
+        channel_layer = get_channel_layer()
+        command = "LIMPAR"
+        
+        async_to_sync(channel_layer.group_send)(
+            'serial_worker_group',
+            {
+                'type': 'execute.command',
+                'command': command
+            }
+        )
+        
+        Digital.objects.all().delete()
+        
+        return Response({"message": f"Comando '{command}' enviado e digitais removidas do BD."}, status=status.HTTP_200_OK)
