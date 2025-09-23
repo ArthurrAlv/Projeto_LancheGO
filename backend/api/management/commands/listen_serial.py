@@ -70,6 +70,33 @@ async def process_serial_data(line, channel_layer, command_instance):
         elif line.startswith('CADASTRO_ERRO:'):
             message_to_send = {'type': 'cadastro.error', 'message': line.split(':', 1)[1].strip()}
 
+    # --- NOVO BLOCO PARA TRATAR A RESPOSTA DE EXCLUSÃO ---
+    elif line.startswith('DELETAR_OK:') or line.startswith('DELETAR_ERRO:'):
+        parts = line.split(':')
+        status = 'OK' if parts[0] == 'DELETAR_OK' else 'ERROR'
+        sensor_id = int(parts[1])
+        target_group = 'dashboard_group' # Envia sempre para o dashboard
+        
+        if status == 'OK':
+            # Apenas deleta do banco se o hardware confirmou
+            deleted_count, _ = await sync_to_async(Digital.objects.filter(sensor_id=sensor_id).delete)()
+            command_instance.stdout.write(f"-> Digital {sensor_id} deletada do banco de dados (Hardware confirmou).")
+        
+        message_to_send = {'type': 'delete.result', 'status': status, 'sensor_id': sensor_id}
+    
+    # --- NOVO BLOCO PARA TRATAR A RESPOSTA DE LIMPEZA GERAL ---
+    elif line == 'LIMPAR_OK' or line == 'LIMPAR_ERRO':
+        status = 'OK' if line == 'LIMPAR_OK' else 'ERROR'
+        target_group = 'dashboard_group'
+
+        if status == 'OK':
+            # Apenas deleta TUDO do banco se o hardware confirmou a limpeza
+            deleted_count, _ = await sync_to_async(Digital.objects.all().delete)()
+            command_instance.stdout.write(f"-> TODAS as digitais deletadas do banco de dados (Hardware confirmou limpeza geral).")
+        
+        # Envia uma mensagem para o frontend para dar feedback (ex: um 'alert' ou 'toast')
+        message_to_send = {'type': 'clearall.result', 'status': status}
+
     if message_to_send:
         await channel_layer.group_send(
             target_group,

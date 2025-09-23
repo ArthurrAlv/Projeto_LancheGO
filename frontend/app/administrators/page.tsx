@@ -89,8 +89,21 @@ export default function ServersManagementPage() {
         case "status.leitor":
           setReaderStatus(data.status === "conectado" ? "connected" : "disconnected");
           break;
+
+        // --- NOVO CASE PARA TRATAR FEEDBACK DE EXCLUSÃO ---
+        case "delete.result":
+          if (data.status === "OK") {
+            // A digital foi apagada com sucesso, recarregamos a lista de servidores
+            console.log(`Digital ${data.sensor_id} do servidor apagada com sucesso. Atualizando lista...`);
+            fetchServers();
+          } else {
+            console.error(`Falha ao apagar digital ${data.sensor_id} do servidor no hardware.`);
+            alert(`Falha ao apagar uma das digitais do servidor no leitor. Tente novamente.`);
+          }
+          break;
       }
     };
+    
     ws.current.onclose = () => setReaderStatus("disconnected");
   };
 

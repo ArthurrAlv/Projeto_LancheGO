@@ -27,7 +27,7 @@ urlpatterns = [
 
     # ROTAS PARA COMANDOS DO HARDWARE
     # path('hardware/start-enroll/', views.StartEnrollView.as_view(), name='start-enroll'),
-    path('hardware/delete-fingerprint/', views.DeleteFingerprintView.as_view(), name='delete-fingerprint'),
+    # path('hardware/delete-fingerprint/', views.DeleteFingerprintView.as_view(), name='delete-fingerprint'),
     path('digitais/associar/', AssociateFingerprintView.as_view(), name='associate-fingerprint'),
     path('hardware/clear-all-fingerprints/', views.ClearAllFingerprintsView.as_view(), name='clear-all-fingerprints'),
 ]

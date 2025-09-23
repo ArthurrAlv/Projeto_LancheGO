@@ -122,9 +122,25 @@ export default function StudentsPage() {
           const newStatus = data.status === "conectado" ? "connected" : "disconnected";
           setReaderStatus(newStatus);
           break;
+        
+        // --- NOVO CASE PARA TRATAR FEEDBACK DE EXCLUSÃO ---
+        case "delete.result":
+          if (data.status === "OK") {
+            // A digital foi apagada com sucesso no hardware e no backend.
+            // Recarregamos os alunos para atualizar o contador de digitais.
+            console.log(`Digital ${data.sensor_id} apagada com sucesso. Atualizando lista...`);
+            fetchStudents(); 
+            // Opcional: Adicionar um toast/notificação de sucesso
+            // alert(`Digital (ID: ${data.sensor_id}) apagada com sucesso!`);
+          } else {
+            console.error(`Falha ao apagar digital ${data.sensor_id} no hardware.`);
+            // Opcional: Adicionar um toast/notificação de erro
+            alert(`Falha ao apagar uma das digitais no leitor. Tente novamente.`);
+          }
+          break;
       }
     };
-
+    
     ws.current.onclose = () => {
       setReaderStatus("disconnected");
     };
