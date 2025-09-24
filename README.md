@@ -30,6 +30,8 @@
 
 ---
 
+# **ações entre esse aviso estão sendo implementadas em 1º momento!!**
+
 ## 🔑 Funcionalidade de Apagar Digitais
 
 * Implementar exclusão de **alunos e suas digitais** **por filtro** (ex.: por turma). Talvez implementar uma maneira diferente, dentro de superuser por exemplo. Ver uma forma que ficaria muito bem implementado, pois preciso dessa função aos finais do ano, onde os alunos forma, então suas digitais, seus dados devem ser apagados. E quando eu falo de implementar bem também me refiro á situação onde alunos não formaram e então não podem ser excluidos. 
@@ -37,6 +39,8 @@
 
 * Implementar exclusão de **todas as digitais**. Implementado!!
   * Também deve exigir confirmação com **digital de superuser**. ⚠️ Se não tiver implementado, implementar!!
+
+# **ações entre esse aviso estão sendo implementadas em 1º momento!!**
 
 ---
 
