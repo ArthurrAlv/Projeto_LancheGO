@@ -30,7 +30,7 @@
 
 ---
 
-# **ações entre esse aviso estão sendo implementadas em 1º momento!!**
+### **ações entre esse aviso estão sendo implementadas em 1º momento!!**
 
 ## 🔑 Funcionalidade de Apagar Digitais
 
@@ -40,7 +40,7 @@
 * Implementar exclusão de **todas as digitais**. Implementado!!
   * Também deve exigir confirmação com **digital de superuser**. ⚠️ Se não tiver implementado, implementar!!
 
-# **ações entre esse aviso estão sendo implementadas em 1º momento!!**
+### **ações entre esse aviso estão sendo implementadas em 1º momento!!**
 
 ---
 
