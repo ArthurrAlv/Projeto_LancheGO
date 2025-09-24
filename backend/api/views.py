@@ -170,16 +170,57 @@ class DeleteServerFingerprintsView(APIView):
         
         return Response({"message": "Comandos de exclusão foram enviados ao hardware."}, status=status.HTTP_200_OK)
 
+# --- MUDANÇA: VIEW ANTIGA MANTIDA POR COMPATIBILIDADE, MAS SERÁ SUBSTITUÍDA PELO FLUXO DE INICIAÇÃO ---
 class ClearAllFingerprintsView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+    def post(self, request, *args, **kwargs):
+        channel_layer = get_channel_layer()
+        command = "LIMPAR"
+        async_to_sync(channel_layer.group_send)('serial_worker_group', {'type': 'execute.command','command': command})
+        return Response({"message": f"Comando '{command}' enviado ao hardware."}, status=status.HTTP_200_OK)
+
+# --- NOVA FUNCIONALIDADE: VIEWS PARA INICIAR AÇÕES CRÍTICAS ---
+
+class InitiateDeleteByTurmaView(APIView):
+    """
+    Inicia o processo de exclusão em massa de alunos de uma turma específica.
+    Não executa a exclusão, apenas "arma" o worker para aguardar a confirmação biométrica.
+    """
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request, *args, **kwargs):
+        turma = request.data.get('turma')
+        if not turma:
+            return Response({"error": "O campo 'turma' é obrigatório."}, status=status.HTTP_400_BAD_REQUEST)
+
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            'serial_worker_group',
+            {
+                'type': 'arm.action',
+                'action': {
+                    'type': 'delete_by_turma',
+                    'turma': turma
+                }
+            }
+        )
+        return Response({"message": f"Ação de exclusão para a turma '{turma}' iniciada. Aguardando confirmação biométrica no leitor."}, status=status.HTTP_202_ACCEPTED)
+
+class InitiateClearAllView(APIView):
+    """
+    Inicia o processo de limpeza total do leitor com confirmação biométrica.
+    """
     permission_classes = [permissions.IsAdminUser]
 
     def post(self, request, *args, **kwargs):
         channel_layer = get_channel_layer()
-        command = "LIMPAR"
-        
         async_to_sync(channel_layer.group_send)(
             'serial_worker_group',
-            {'type': 'execute.command','command': command}
+            {
+                'type': 'arm.action',
+                'action': {
+                    'type': 'clear_all_fingerprints'
+                }
+            }
         )
-        
-        return Response({"message": f"Comando '{command}' enviado ao hardware."}, status=status.HTTP_200_OK)
+        return Response({"message": "Ação de limpeza total iniciada. Aguardando confirmação biométrica no leitor."}, status=status.HTTP_202_ACCEPTED)

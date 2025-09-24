@@ -24,6 +24,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Plus, Pencil, Trash2, Fingerprint, Loader2, Eye, EyeOff, LogOut, ShieldAlert, CheckCircle, XCircle, Usb, PlugZap } from "lucide-react"
 import apiClient from "@/lib/api"
 import { useAuth } from "@/context/AuthContext"
+import { useToast } from "@/components/ui/use-toast";
 
 interface Server {
   id: number;
@@ -61,6 +62,7 @@ export default function ServersManagementPage() {
 
   const { token, logout } = useAuth()
   const router = useRouter()
+  const { toast } = useToast();
 
   // --- MUDANÇA 3: LÓGICA DE WEBSOCKET ATUALIZADA E ALINHADA ---
   const setupWebSocket = () => {
@@ -101,6 +103,26 @@ export default function ServersManagementPage() {
             alert(`Falha ao apagar uma das digitais do servidor no leitor. Tente novamente.`);
           }
           break;
+        
+        case "action.feedback":
+            toast({
+                title: data.status === "success" ? "Sucesso!" : (data.status === "error" ? "Erro!" : "Aviso"),
+                description: data.message,
+                variant: data.status === "error" ? "destructive" : "default",
+            });
+            if (data.status === "success") {
+                fetchServers(); // Atualiza a lista após a operação
+            }
+            break;
+        // --- NOVO: Tratando feedback da limpeza geral ---
+        case "clearall.result":
+             toast({
+                title: data.status === "OK" ? "Operação Concluída" : "Falha na Operação",
+                description: data.status === "OK" ? "Memória do leitor limpa com sucesso!" : "O hardware reportou um erro ao limpar a memória.",
+                variant: data.status === "OK" ? "default" : "destructive",
+            });
+            fetchServers();
+            break;
       }
     };
     
@@ -221,6 +243,20 @@ export default function ServersManagementPage() {
     }
   };
   
+  // --- MUDANÇA: Função de limpar leitor agora apenas INICIA a ação ---
+  const handleInitiateClearAll = async () => {
+    try {
+        const response = await apiClient.post('/actions/initiate-clear-all/');
+        toast({
+            title: "Ação Iniciada",
+            description: response.data.message,
+        });
+    } catch (error) {
+        console.error("Falha ao iniciar limpeza do leitor:", error);
+        toast({ title: "Erro", description: "Não foi possível iniciar a ação de limpeza.", variant: "destructive" });
+    }
+  };
+
   // --- MUDANÇA 6: NOVA FUNÇÃO PARA LIMPAR TODAS AS DIGITAIS DO LEITOR ---
   const handleClearAllFingerprints = async () => {
     try {
@@ -283,27 +319,28 @@ export default function ServersManagementPage() {
                  </div>
             </div>
           <div className="flex items-center space-x-4">
-            <AlertDialog>
-                <AlertDialogTrigger asChild>
-                    <Button variant="destructive"><ShieldAlert className="mr-2 h-4 w-4" />Limpar Leitor</Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Atenção! Ação Irreversível!</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Tem certeza que deseja apagar TODAS as digitais da memória do leitor? Isso removerá a biometria de TODOS os usuários. Esta ação não pode ser desfeita.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleClearAllFingerprints} className="bg-destructive hover:bg-destructive/90">Sim, Limpar Tudo</AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-            <Button onClick={() => { resetForm(); setIsModalOpen(true); }}>
-              <Plus className="mr-2 h-4 w-4" />Adicionar Novo Servidor
-            </Button>
-            <Button variant="outline" onClick={handleLogout}><LogOut className="mr-2 h-4 w-4" />Sair</Button>
+              <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                      <Button variant="destructive"><ShieldAlert className="mr-2 h-4 w-4" />Limpar Leitor</Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                      <AlertDialogHeader>
+                          <AlertDialogTitle>Atenção! Ação Irreversível!</AlertDialogTitle>
+                          <AlertDialogDescription>
+                              Esta ação irá apagar TODAS as digitais da memória do leitor. Para continuar, será exigida a confirmação com a digital de um superusuário.
+                          </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          {/* --- MUDANÇA: onClick agora chama a função de INICIAÇÃO --- */}
+                          <AlertDialogAction onClick={handleInitiateClearAll} className="bg-destructive hover:bg-destructive/90">Iniciar Limpeza</AlertDialogAction>
+                      </AlertDialogFooter>
+                  </AlertDialogContent>
+              </AlertDialog>
+              <Button onClick={() => { resetForm(); setIsModalOpen(true); }}>
+                  <Plus className="mr-2 h-4 w-4" />Adicionar Novo Servidor
+              </Button>
+              <Button variant="outline" onClick={handleLogout}><LogOut className="mr-2 h-4 w-4" />Sair</Button>
           </div>
         </header>
         

@@ -30,4 +30,8 @@ urlpatterns = [
     # path('hardware/delete-fingerprint/', views.DeleteFingerprintView.as_view(), name='delete-fingerprint'),
     path('digitais/associar/', AssociateFingerprintView.as_view(), name='associate-fingerprint'),
     path('hardware/clear-all-fingerprints/', views.ClearAllFingerprintsView.as_view(), name='clear-all-fingerprints'),
+
+    # ROTAS PARA INICIAR AÇÕES CRÍTICAS (COM CONFIRMAÇÃO BIOMÉTRICA)
+    path('actions/initiate-delete-by-turma/', views.InitiateDeleteByTurmaView.as_view(), name='initiate-delete-by-turma'),
+    path('actions/initiate-clear-all/', views.InitiateClearAllView.as_view(), name='initiate-clear-all'),
 ]

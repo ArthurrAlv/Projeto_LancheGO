@@ -48,6 +48,7 @@
   * Torná-lo visível novamente, mas com **marcação de “superuser”**.
   * Qualquer alteração deve **exigir senha do superuser**.
   * **Superuser não pode ser excluído**.
+  * implementar inserção de um novo superusuario(limite 3), mas com solicitação de senha do superuser. Ou isso não é necessario? Após implementado, tem como acessar o painel do django e fazer o processo? Criar um servidor e ir no django para marca-lo como superuser. Qual é a melhor forma?
 
 * **Fluxo de Adição de Servidor:**
 

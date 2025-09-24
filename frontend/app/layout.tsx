@@ -8,6 +8,7 @@ import { Navigation } from "@/components/navigation"
 import { Suspense } from "react"
 import { cn } from "@/lib/utils"
 import { AuthProvider } from "@/context/AuthContext"
+import { Toaster } from "@/components/ui/toaster"
 import "./globals.css"
 
 const fontSans = FontSans({
@@ -39,6 +40,7 @@ export default function RootLayout({
           </Suspense>
         </AuthProvider>
         <Analytics />
+        <Toaster />
       </body>
     </html>
   )

@@ -53,9 +53,11 @@ import {
   PlugZap,
   CheckCircle,
   XCircle,
+  ShieldAlert,
 } from "lucide-react";
 import apiClient from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/components/ui/use-toast";
 
 interface Student {
   id: number;
@@ -87,10 +89,12 @@ export default function StudentsPage() {
   // --- MUDANÇA 1: Melhorando o estado do "enrollmentStatus" para ser um objeto ---
   const [enrollmentStatus, setEnrollmentStatus] = useState<EnrollmentStatusType>({ message: "Aguardando início...", state: "idle" });
   const [isEnrolling, setIsEnrolling] = useState(false);
+  const [turmaToDelete, setTurmaToDelete] = useState<string>("");
   const ws = useRef<WebSocket | null>(null);
 
   const { token } = useAuth();
   const router = useRouter();
+  const { toast } = useToast();
 
   const setupWebSocket = () => {
     if (ws.current && ws.current.readyState === WebSocket.OPEN) return;
@@ -140,10 +144,7 @@ export default function StudentsPage() {
           break;
       }
     };
-    
-    ws.current.onclose = () => {
-      setReaderStatus("disconnected");
-    };
+    ws.current.onclose = () => { setReaderStatus("disconnected"); };
   };
 
   const fetchStudents = async () => {
@@ -285,6 +286,21 @@ export default function StudentsPage() {
     }, 500);
   };
 
+  // --- NOVA FUNCIONALIDADE: Função para iniciar a exclusão por turma ---
+  const handleInitiateDeleteByTurma = async () => {
+    if (!turmaToDelete) {
+        toast({ title: "Ação cancelada", description: "Por favor, selecione uma turma.", variant: "destructive" });
+        return;
+    }
+    try {
+        const response = await apiClient.post('/actions/initiate-delete-by-turma/', { turma: turmaToDelete });
+        toast({ title: "Ação Iniciada", description: response.data.message });
+    } catch (error) {
+        console.error("Falha ao iniciar exclusão por turma:", error);
+        toast({ title: "Erro", description: "Não foi possível iniciar a ação de exclusão.", variant: "destructive" });
+    }
+  };
+
   const filteredStudents = students.filter((student) => {
     const nameMatch = student.nome_completo.toLowerCase().includes(searchTerm.toLowerCase());
     const turmaMatch = turmaFilter === "Todas as Turmas" || student.turma === turmaFilter;
@@ -338,11 +354,44 @@ export default function StudentsPage() {
               <span>{readerStatus === "connected" ? "Leitor Conectado" : "Leitor Desconectado"}</span>
             </div>
           </div>
-          <Button onClick={() => setIsAddModalOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Adicionar Novo Aluno
-          </Button>
+          <div className="flex items-center space-x-2">
+              {/* --- NOVA FUNCIONALIDADE: Botão para Ações em Massa --- */}
+              <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                      <Button variant="destructive"><ShieldAlert className="mr-2 h-4 w-4" /> Ações em Massa</Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                      <AlertDialogHeader>
+                          <AlertDialogTitle>Exclusão de Alunos por Turma</AlertDialogTitle>
+                          <AlertDialogDescription>
+                              Esta ação irá apagar TODOS os alunos e suas respectivas digitais da turma selecionada. Esta operação é destinada para o fim do ano letivo e não pode ser desfeita.
+                              <br/><br/>
+                              **Selecione apenas turmas de 3º ano para evitar exclusões acidentais.**
+                          </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <div className="py-4">
+                          <Label htmlFor="turma-delete">Selecione a Turma para Excluir</Label>
+                          <Select onValueChange={setTurmaToDelete}>
+                              <SelectTrigger><SelectValue placeholder="Selecione uma turma..." /></SelectTrigger>
+                              <SelectContent>
+                                  <SelectItem value="3E">3º Ano Eletro</SelectItem>
+                                  <SelectItem value="3I">3º Ano Info</SelectItem>
+                              </SelectContent>
+                          </Select>
+                      </div>
+                      <AlertDialogFooter>
+                          <AlertDialogCancel onClick={() => setTurmaToDelete("")}>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleInitiateDeleteByTurma} className="bg-destructive hover:bg-destructive/90">Iniciar Exclusão</AlertDialogAction>
+                      </AlertDialogFooter>
+                  </AlertDialogContent>
+              </AlertDialog>
+
+              <Button onClick={() => setIsAddModalOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" /> Adicionar Novo Aluno
+              </Button>
+          </div>
         </div>
+        
 
         <Card>
           <CardHeader>
