@@ -15,9 +15,10 @@
   * Desenvolver um processo de importação recorrente a partir de planilhas.
   * Implementar interface no frontend para upload da planilha.
   * Lidar com diferenças nos dados da planilha (ex.: nome da turma diferente do padrão interno).
-  * Avaliar se esse recurso deve estar no **superuser** ou em **servidores**.
+  * Avaliar se esse recurso deve estar no **superuser** ou em **servidores**. Melhor que seja no superuser!
   * A implementação precisa ser robusta, compatível com **ambiente de desenvolvimento** e **produção**.
-  * **Nota:** Verificar se o Django já oferece uma solução adequada (ex.: `django-import-export`).
+  * **Nota:** Verificar se o Django já oferece uma solução adequada.
+  * A planilha não vai ter Matricula, então teremos que tirar. Pra não imterromper ou dar trabalho, talvez seja o caso de mudar para numeração mesmo, um marcador aleatório ou sequencial mesmo, ex: "id". A planilha não vai ter escrito turma como "3º Ano Eletro". Ela tem outro codinome exemplo "MIEL125IA". Teremos que tratar isso. Outro detalhe é que na planilha terá mais informações e sobre precisaremos de Nome(nome_completo), Turma. As turma são: 1º eletro(MIEL125IA), 2º eletro(MIEL124IA), 3º eltro(MIEL123IA); 1º info(MIII125IA), 2º info(MIII124IA), 3º info(MIII123IA); - "25, 24, 23" seria o ano que ingressou na escola então há um padrão pra proximas inserções de planilha.
 
 * [ ] **Filtro de Digitais (Alunos)**
 
@@ -31,12 +32,11 @@
 
 ## 🔑 Funcionalidade de Apagar Digitais
 
-* Implementar exclusão de **alunos e suas digitais** **por filtro** (ex.: por turma).
-
+* Implementar exclusão de **alunos e suas digitais** **por filtro** (ex.: por turma). Talvez implementar uma maneira diferente, dentro de superuser por exemplo. Ver uma forma que ficaria muito bem implementado, pois preciso dessa função aos finais do ano, onde os alunos forma, então suas digitais, seus dados devem ser apagados. E quando eu falo de implementar bem também me refiro á situação onde alunos não formaram e então não podem ser excluidos. 
   * Exigir **digital de servidor (superuser)** para confirmar exclusão. ⚠️
-* Implementar exclusão de **todas as digitais**.
 
-  * Também deve exigir confirmação com **digital de superuser**. ⚠️
+* Implementar exclusão de **todas as digitais**. Implementado!!
+  * Também deve exigir confirmação com **digital de superuser**. ⚠️ Se não tiver implementado, implementar!!
 
 ---
 
