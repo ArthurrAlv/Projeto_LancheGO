@@ -204,16 +204,17 @@ export default function StudentsPage() {
     }
   };
 
-  const handleDeleteFingerprints = async (studentId: number) => {
-    if (!studentId) return;
-    try {
-      await apiClient.post(`/alunos/${studentId}/delete-fingerprints/`);
-      setEditingStudent((prev) => (prev ? { ...prev, digitais_count: 0 } : null));
-      fetchStudents();
-    } catch (error) {
-      console.error("Falha ao deletar digitais:", error);
-      alert("Ocorreu um erro ao apagar as digitais.");
-    }
+  const handleInitiateDeleteFingerprints = async (studentId: number) => {
+      if (!studentId) return;
+      try {
+          const response = await apiClient.post(`/actions/initiate-delete-student-fingerprints/${studentId}/`);
+          toast({
+              title: "Ação Iniciada",
+              description: response.data.message,
+          });
+      } catch (error) {
+          toast({ title: "Erro", description: "Não foi possível iniciar a exclusão de digitais.", variant: "destructive" });
+      }
   };
 
   // --- MUDANÇA 3: Função de associação de digital completamente refeita para ser mais robusta ---
@@ -635,7 +636,7 @@ export default function StudentsPage() {
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
                             <AlertDialogAction
-                              onClick={() => handleDeleteFingerprints(editingStudent.id)}
+                              onClick={() => handleInitiateDeleteFingerprints(editingStudent.id)}
                               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             >
                               Sim, Apagar Tudo

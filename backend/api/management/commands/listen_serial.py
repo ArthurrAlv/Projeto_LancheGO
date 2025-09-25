@@ -110,8 +110,12 @@ class Command(BaseCommand):
         action = self.pending_action
         action_type = action.get('type')
         
+        # --- MUDANÇA: Adicionando as novas ações de exclusão individual ---
         if action_type == 'delete_by_turma': await self._execute_delete_by_turma(action)
         elif action_type == 'clear_all_fingerprints': await self._execute_clear_all()
+        elif action_type == 'delete_student_fingerprints': await self._execute_delete_user_fingerprints(action, 'aluno')
+        elif action_type == 'delete_server_fingerprints': await self._execute_delete_user_fingerprints(action, 'servidor')
+
         
         await self.cancel_pending_action(send_message=False) # Limpa a ação após execução
 
@@ -148,6 +152,42 @@ class Command(BaseCommand):
         # A confirmação e exclusão do banco virão do `process_serial_data` ao receber `LIMPAR_OK`
         # Mas enviamos um feedback imediato de sucesso para o frontend
         await self.channel_layer.group_send('dashboard_group', {'type': 'broadcast_message', 'message': {'type': 'action.feedback', 'status': 'success', 'message': 'Comando para limpar leitor enviado. O sistema será atualizado após a confirmação do hardware.'}})
+
+    # --- NOVO: Método genérico para apagar digitais de um usuário específico ---
+    @sync_to_async
+    def _get_user_and_digitais(self, user_id, user_type):
+        model = Aluno if user_type == 'aluno' else Servidor
+        try:
+            user = model.objects.prefetch_related('digitais').get(pk=user_id)
+            return user, list(user.digitais.all())
+        except model.DoesNotExist:
+            return None, []
+
+    async def _execute_delete_user_fingerprints(self, action, user_type):
+        user_id_key = 'aluno_id' if user_type == 'aluno' else 'servidor_id'
+        user_id = action.get(user_id_key)
+        
+        user, digitais_to_delete = await self._get_user_and_digitais(user_id, user_type)
+
+        if not user or not digitais_to_delete:
+            message = f"{user_type.capitalize()} não encontrado ou não possui digitais."
+            self.stdout.write(self.style.WARNING(message))
+            await self.channel_layer.group_send('dashboard_group', {'type': 'broadcast_message', 'message': {'type': 'action.feedback', 'status': 'info', 'message': message}})
+            return
+
+        self.stdout.write(self.style.SUCCESS(f"EXECUTANDO exclusão de digitais para {user_type}: {user.nome_completo}"))
+        
+        for digital in digitais_to_delete:
+            command = f"DELETAR:{digital.sensor_id}\n"
+            self.ser.write(command.encode('utf-8'))
+            self.stdout.write(f"-> Comando enviado: DELETAR:{digital.sensor_id}")
+            await asyncio.sleep(0.1)
+            
+        # A exclusão do banco ocorrerá quando o hardware responder com DELETAR_OK.
+        # Apenas enviamos um feedback de que os comandos foram enviados.
+        message = f"Comandos para apagar as digitais de {user.nome_completo} foram enviados ao hardware."
+        await self.channel_layer.group_send('dashboard_group', {'type': 'broadcast_message', 'message': {'type': 'action.feedback', 'status': 'success', 'message': message}})
+
 
     def handle(self, *args, **kwargs):
         self.stdout.write(self.style.SUCCESS('Iniciando gerenciador de hardware unificado...'))

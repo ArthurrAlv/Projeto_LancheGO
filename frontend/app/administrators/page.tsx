@@ -208,7 +208,7 @@ export default function ServersManagementPage() {
         setEnrollmentStatus({ message: "Erro: Falha na conexão com o hardware.", state: "error" });
         setTimeout(() => setIsEnrolling(false), 3000);
       }
-    }, 500);
+    }, 100);
   };
 
   const handleAssociateFingerprint = async (sensorId: number, serverId: number) => {
@@ -233,13 +233,15 @@ export default function ServersManagementPage() {
     }
   };
 
-  const handleDeleteFingerprints = async (serverId: number) => {
+  const handleInitiateDeleteFingerprints = async (serverId: number) => {
     try {
-      await apiClient.post(`/servidores/${serverId}/delete-fingerprints/`);
-      await fetchServers();
-      setEditingServer(prev => prev ? { ...prev, digitais_count: 0 } : null);
+      const response = await apiClient.post(`/actions/initiate-delete-server-fingerprints/${serverId}/`);
+      toast({
+          title: "Ação Iniciada",
+          description: response.data.message,
+      });
     } catch (error) {
-      alert("Ocorreu um erro ao apagar as digitais.");
+      toast({ title: "Erro", description: "Não foi possível iniciar a exclusão de digitais.", variant: "destructive" });
     }
   };
   
@@ -254,17 +256,6 @@ export default function ServersManagementPage() {
     } catch (error) {
         console.error("Falha ao iniciar limpeza do leitor:", error);
         toast({ title: "Erro", description: "Não foi possível iniciar a ação de limpeza.", variant: "destructive" });
-    }
-  };
-
-  // --- MUDANÇA 6: NOVA FUNÇÃO PARA LIMPAR TODAS AS DIGITAIS DO LEITOR ---
-  const handleClearAllFingerprints = async () => {
-    try {
-        await apiClient.post('/hardware/clear-all-fingerprints/');
-        alert("Comando para limpar a memória do leitor foi enviado. Todas as associações foram removidas do sistema.");
-        fetchServers();
-    } catch (error) {
-        alert("Ocorreu um erro ao enviar o comando para o hardware.");
     }
   };
 
@@ -430,7 +421,7 @@ export default function ServersManagementPage() {
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDeleteFingerprints(editingServer.id)} className="bg-destructive hover:bg-destructive/90">Sim, Apagar Tudo</AlertDialogAction>
+                            <AlertDialogAction onClick={() => handleInitiateDeleteFingerprints(editingServer.id)} className="bg-destructive hover:bg-destructive/90">Sim, Apagar Tudo</AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>

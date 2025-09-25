@@ -25,7 +25,6 @@ class AlunoRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
         aluno = self.get_object()
         # Pega a lista de IDs das digitais ANTES de deletar o aluno
         digitais_para_deletar = list(aluno.digitais.all())
-
         if digitais_para_deletar:
             channel_layer = get_channel_layer()
             # Envia o comando de exclusão para o hardware para cada digital
@@ -33,11 +32,9 @@ class AlunoRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
                 command = f"DELETAR:{digital.sensor_id}"
                 async_to_sync(channel_layer.group_send)(
                     'serial_worker_group',
-                    {
-                        'type': 'execute.command',
-                        'command': command
-                    }
+                    {'type': 'execute.command', 'command': command}
                 )
+        return super().destroy(request, *args, **kwargs)
         
         # Agora, prossegue com a exclusão do aluno do banco de dados
         return super().destroy(request, *args, **kwargs)
@@ -122,62 +119,7 @@ class FingerprintLoginView(APIView):
         except Digital.DoesNotExist:
             return Response({"error": "Digital não encontrada"}, status=status.HTTP_404_NOT_FOUND)
 
-class DeleteStudentFingerprintsView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
 
-    def post(self, request, *args, **kwargs):
-        aluno_id = kwargs.get('aluno_id')
-        try:
-            aluno = Aluno.objects.get(pk=aluno_id)
-        except Aluno.DoesNotExist:
-            return Response({"error": "Aluno não encontrado."}, status=status.HTTP_404_NOT_FOUND)
-
-        digitais_para_deletar = list(aluno.digitais.all())
-        if not digitais_para_deletar:
-            return Response({"message": "Aluno não possui digitais cadastradas."}, status=status.HTTP_200_OK)
-
-        channel_layer = get_channel_layer()
-        for digital in digitais_para_deletar:
-            command = f"DELETAR:{digital.sensor_id}"
-            async_to_sync(channel_layer.group_send)(
-                'serial_worker_group',
-                {'type': 'execute.command','command': command}
-            )
-        
-        return Response({"message": "Comandos para deletar digitais foram enviados ao hardware."}, status=status.HTTP_200_OK)
-
-class DeleteServerFingerprintsView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request, *args, **kwargs):
-        servidor_id = kwargs.get('servidor_id')
-        try:
-            servidor = Servidor.objects.get(pk=servidor_id)
-        except Servidor.DoesNotExist:
-            return Response({"error": "Servidor não encontrado."}, status=status.HTTP_404_NOT_FOUND)
-
-        digitais_para_deletar = list(servidor.digitais.all())
-        if not digitais_para_deletar:
-            return Response({"message": "Servidor não possui digitais cadastradas."}, status=status.HTTP_200_OK)
-
-        channel_layer = get_channel_layer()
-        for digital in digitais_para_deletar:
-            command = f"DELETAR:{digital.sensor_id}"
-            async_to_sync(channel_layer.group_send)(
-                'serial_worker_group',
-                {'type': 'execute.command', 'command': command}
-            )
-        
-        return Response({"message": "Comandos de exclusão foram enviados ao hardware."}, status=status.HTTP_200_OK)
-
-# --- MUDANÇA: VIEW ANTIGA MANTIDA POR COMPATIBILIDADE, MAS SERÁ SUBSTITUÍDA PELO FLUXO DE INICIAÇÃO ---
-class ClearAllFingerprintsView(APIView):
-    permission_classes = [permissions.IsAdminUser]
-    def post(self, request, *args, **kwargs):
-        channel_layer = get_channel_layer()
-        command = "LIMPAR"
-        async_to_sync(channel_layer.group_send)('serial_worker_group', {'type': 'execute.command','command': command})
-        return Response({"message": f"Comando '{command}' enviado ao hardware."}, status=status.HTTP_200_OK)
 
 # --- NOVA FUNCIONALIDADE: VIEWS PARA INICIAR AÇÕES CRÍTICAS ---
 
@@ -224,3 +166,41 @@ class InitiateClearAllView(APIView):
             }
         )
         return Response({"message": "Ação de limpeza total iniciada. Aguardando confirmação biométrica no leitor."}, status=status.HTTP_202_ACCEPTED)
+
+class InitiateDeleteStudentFingerprintsView(APIView):
+    """ Inicia a exclusão segura das digitais de um aluno específico. """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        aluno_id = kwargs.get('aluno_id')
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            'serial_worker_group',
+            {
+                'type': 'arm.action',
+                'action': {
+                    'type': 'delete_student_fingerprints',
+                    'aluno_id': aluno_id
+                }
+            }
+        )
+        return Response({"message": "Ação de exclusão de digitais iniciada. Aguardando confirmação biométrica."}, status=status.HTTP_202_ACCEPTED)
+
+class InitiateDeleteServerFingerprintsView(APIView):
+    """ Inicia a exclusão segura das digitais de um servidor específico. """
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request, *args, **kwargs):
+        servidor_id = kwargs.get('servidor_id')
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            'serial_worker_group',
+            {
+                'type': 'arm.action',
+                'action': {
+                    'type': 'delete_server_fingerprints',
+                    'servidor_id': servidor_id
+                }
+            }
+        )
+        return Response({"message": "Ação de exclusão de digitais iniciada. Aguardando confirmação biométrica."}, status=status.HTTP_202_ACCEPTED)

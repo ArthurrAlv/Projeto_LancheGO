@@ -3,7 +3,7 @@
 import * as React from "react"
 import { type ToastProps } from "@radix-ui/react-toast"
 import { type VariantProps } from "class-variance-authority"
-import { type toastVariants } from "@/components/ui/toast"
+import { toastVariants } from "@/components/ui/toast"
 
 export type ToastActionElement = React.ReactElement
 export type ToasterToast = ToastProps & {
@@ -16,7 +16,7 @@ export type ToasterToast = ToastProps & {
 }
 
 const TOAST_LIMIT = 1
-const TOAST_REMOVE_DELAY = 5000
+const TOAST_REMOVE_DELAY = 8000
 
 type State = {
   toasts: ToasterToast[]
