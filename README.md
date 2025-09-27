@@ -30,8 +30,6 @@
 
 ---
 
-## 🐛 Correções Necessárias
-
 * **Página Administrators:**
 
   * Remover a forma atual de exibir o **Superuser**.
