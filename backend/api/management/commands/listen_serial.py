@@ -1,5 +1,6 @@
 # api/management/commands/listen_serial.py (VERSÃO FINAL COM LÓGICA DE CONFIRMAÇÃO)
 import serial
+import serial.tools.list_ports
 import asyncio
 import time
 from django.core.management.base import BaseCommand
@@ -10,9 +11,28 @@ from api.serializers import AlunoSerializer
 from datetime import time as dtime
 from django.utils import timezone
 
-SERIAL_PORT = 'COM3' # ❗ CONFIRME A PORTA CORRETA AQUI ❗
+TARGET_HWID = "USB VID:PID=1A86:7523 SER= LOCATION=1-9" 
 BAUD_RATE = 115200
 ACTION_TIMEOUT = 30 # Segundos para aguardar a confirmação biométrica
+
+def find_serial_port_by_hwid():
+    """
+    Sonda as portas seriais e encontra o dispositivo com o HWID correspondente.
+    """
+    print("Procurando o dispositivo LancheGO pelo HWID...")
+    
+    ports = serial.tools.list_ports.comports()
+    if not ports:
+        print("Nenhuma porta serial encontrada.")
+        return None
+
+    for port in ports:
+        if TARGET_HWID in port.hwid:
+            print(f"Dispositivo LancheGO encontrado na porta {port.device}!")
+            return port.device
+            
+    print(f"Dispositivo com HWID contendo '{TARGET_HWID}' não foi encontrado.")
+    return None
 
 def get_aluno_data_sync(aluno):
     return AlunoSerializer(aluno).data
@@ -191,14 +211,20 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         self.stdout.write(self.style.SUCCESS('Iniciando gerenciador de hardware unificado...'))
-        asyncio.run(self.main_loop())
+        # --- Chama a função de detecção antes de iniciar o loop ---
+        serial_port = find_serial_port_by_hwid()
+        if not serial_port:
+            self.stdout.write(self.style.ERROR('Não foi possível iniciar o worker. Dispositivo LancheGO não encontrado.'))
+            return
 
-    async def main_loop(self):
+        asyncio.run(self.main_loop(serial_port))
+
+    async def main_loop(self, serial_port):
         await self.channel_layer.group_add('serial_worker_group', 'serial_worker_channel')
         while True:
             try:
-                self.ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=0.1)
-                self.stdout.write(self.style.SUCCESS(f'Conectado com sucesso a {SERIAL_PORT}'))
+                self.ser = serial.Serial(serial_port, BAUD_RATE, timeout=0.1)
+                self.stdout.write(self.style.SUCCESS(f'Conectado com sucesso a {serial_port}'))
                 for group_name in ['login_group', 'dashboard_group']: await self.channel_layer.group_send(group_name, {'type': 'broadcast_message', 'message': {'type': 'status.leitor', 'status': 'conectado'}})
                 
                 while True:
@@ -223,7 +249,7 @@ class Command(BaseCommand):
                             self.ser.write(f'{command}\n'.encode('utf-8'))
                     except asyncio.TimeoutError: pass
             except serial.SerialException:
-                self.stdout.write(self.style.ERROR(f'Não foi possível conectar a {SERIAL_PORT}. Tentando novamente...'))
+                self.stdout.write(self.style.ERROR(f'Não foi possível conectar a {serial_port}. Tentando novamente...'))
                 if self.channel_layer:
                     for group_name in ['login_group', 'dashboard_group']: await self.channel_layer.group_send(group_name, {'type': 'broadcast_message', 'message': {'type': 'status.leitor', 'status': 'desconectado'}})
                 await asyncio.sleep(1)
