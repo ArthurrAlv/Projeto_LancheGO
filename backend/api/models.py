@@ -24,7 +24,7 @@ class Aluno(models.Model):
     ]
 
     nome_completo = models.CharField(max_length=255)
-    matricula = models.CharField(max_length=50, unique=True)
+    matricula = models.CharField(max_length=50, unique=True, null=True, blank=True) # Alterado
     turma = models.CharField(max_length=2, choices=TURMAS_CHOICES)
 
     def __str__(self):

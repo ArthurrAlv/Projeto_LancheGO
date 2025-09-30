@@ -91,6 +91,16 @@ export default function StudentsPage() {
   const [isEnrolling, setIsEnrolling] = useState(false);
   const [turmaToDelete, setTurmaToDelete] = useState<string>("");
   const ws = useRef<WebSocket | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // --- Adicioando planilha e + filtros
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+  const [biometricFilter, setBiometricFilter] = useState("todos");
+  const [uploadPhase, setUploadPhase] = useState<'idle' | 'uploading' | 'complete'>('idle');
+  
+
 
   const { token } = useAuth();
   const router = useRouter();
@@ -302,10 +312,58 @@ export default function StudentsPage() {
     }
   };
 
+  const handleFileUpload = async () => {
+    if (!selectedFile) {
+        alert("Por favor, selecione um arquivo de planilha.");
+        return;
+    }
+    setUploadPhase('uploading');
+    setUploadStatus("Enviando e processando, por favor aguarde...");
+    const formData = new FormData();
+    formData.append('planilha', selectedFile);
+
+    try {
+        const response = await apiClient.post('/alunos/upload-planilha/', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        const { criados, existentes_ignorados, erros } = response.data;
+        let summary = `Importação concluída!\n- Alunos novos criados: ${criados}\n- Alunos já existentes (ignorados): ${existentes_ignorados}`;
+        if (erros.length > 0) {
+            summary += `\n- Erros encontrados: ${erros.length}\n\nDetalhes dos erros:\n${erros.join('\n')}`;
+        }
+        setUploadStatus(summary);
+        fetchStudents(); // Atualiza a lista
+    } catch (error: any) {
+      // --- MUDANÇA AQUI: Verificando o código de status do erro ---
+      if (error.response && error.response.status === 403) {
+          setUploadStatus("Acesso Negado: Apenas superusuários podem importar planilhas.");
+      } else {
+          setUploadStatus(`Erro: ${error.response?.data?.error || "Falha na comunicação com o servidor."}`);
+      }
+    } finally {
+        setUploadPhase('complete'); // <-- MUDANÇA: Define a fase como "concluído"
+    }
+  };
+
+  const resetUploadModal = () => {
+    setSelectedFile(null);
+    setUploadStatus(null);
+    setUploadPhase('idle');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   const filteredStudents = students.filter((student) => {
-    const nameMatch = student.nome_completo.toLowerCase().includes(searchTerm.toLowerCase());
-    const turmaMatch = turmaFilter === "Todas as Turmas" || student.turma === turmaFilter;
-    return nameMatch && turmaMatch;
+      const nameMatch = student.nome_completo.toLowerCase().includes(searchTerm.toLowerCase());
+      const turmaMatch = turmaFilter === "Todas as Turmas" || student.turma === turmaFilter;
+
+      const biometricMatch = 
+          biometricFilter === "todos" ||
+          (biometricFilter === "nao_cadastrados" && student.digitais_count === 0) ||
+          (biometricFilter === "parcial" && student.digitais_count === 1);
+
+      return nameMatch && turmaMatch && biometricMatch;
   });
 
   const resetAddModal = () => {
@@ -420,6 +478,22 @@ export default function StudentsPage() {
                   <SelectItem value="3I">3º Ano Info</SelectItem>
                 </SelectContent>
               </Select>
+              <div className="flex items-center space-x-2">
+                  <Select onValueChange={setBiometricFilter} defaultValue="todos">
+                      <SelectTrigger className="w-[220px]">
+                          <SelectValue placeholder="Filtrar por status biométrico" />
+                      </SelectTrigger>
+                      <SelectContent>
+                          <SelectItem value="todos">Todos os Status</SelectItem>
+                          <SelectItem value="nao_cadastrados">Não Cadastrados (0)</SelectItem>
+                          <SelectItem value="parcial">Parcial (1)</SelectItem>
+                      </SelectContent>
+                  </Select>
+
+                  <Button variant="outline" onClick={() => setIsUploadModalOpen(true)}>
+                      <Plus className="mr-2 h-4 w-4" /> Importar Planilha
+                  </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -668,6 +742,55 @@ export default function StudentsPage() {
             </>
           )}
         </DialogContent>
+      </Dialog>
+      
+      <Dialog open={isUploadModalOpen} onOpenChange={(isOpen) => { if (!isOpen) { setSelectedFile(null); setUploadStatus(null); } setIsUploadModalOpen(isOpen); }}>
+          <DialogContent>
+              <DialogHeader>
+                  <DialogTitle>Importar Alunos via Planilha</DialogTitle>
+              </DialogHeader>
+              <div className="py-4 space-y-4">
+                  {uploadPhase !== 'complete' && (
+                      <>
+                          <p className="text-sm text-muted-foreground">
+                              Selecione uma planilha (.xlsx) com as colunas: NOME e TURMA (codinome).
+                          </p>
+                          <Input
+                              id="file-upload" // Adicionado um ID
+                              ref={fileInputRef} // --- MUDANÇA 4: Associando a referência ao input ---
+                              type="file"
+                              accept=".xlsx"
+                              onChange={(e) => setSelectedFile(e.target.files ? e.target.files[0] : null)}
+                          />
+                      </>
+                  )}
+                  {uploadStatus && (
+                      <div className="mt-4 max-h-40 overflow-y-auto rounded-md border bg-muted p-3 text-sm">
+                          <pre className="whitespace-pre-wrap font-sans">
+                              {uploadStatus}
+                          </pre>
+                      </div>
+                  )}
+              </div>
+              <DialogFooter>
+                  {uploadPhase === 'complete' ? (
+                      <>
+                          <Button variant="outline" onClick={() => setIsUploadModalOpen(false)}>Fechar</Button>
+                          <Button onClick={resetUploadModal}>
+                              <Plus className="mr-2 h-4 w-4" /> Importar Outra
+                          </Button>
+                      </>
+                  ) : (
+                      <>
+                          <Button variant="outline" onClick={() => setIsUploadModalOpen(false)}>Cancelar</Button>
+                          <Button onClick={handleFileUpload} disabled={!selectedFile || uploadPhase === 'uploading'}>
+                              {uploadPhase === 'uploading' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                              {uploadPhase === 'uploading' ? 'Enviando...' : 'Enviar Planilha'}
+                          </Button>
+                      </>
+                  )}
+              </DialogFooter>
+          </DialogContent>
       </Dialog>
     </div>
   );

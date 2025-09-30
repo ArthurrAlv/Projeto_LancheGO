@@ -6,27 +6,11 @@
 
 *(Registrar aqui os erros detectados com data e análise do problema. A seção serve como histórico de bugs encontrados e diagnosticados.)*
 
----
+* **Correções críticas:**
 
-## 🛠️ Próximas Implementações
-
-* [ ] **Importação de Dados de Alunos via Planilha**
-
-  * Desenvolver um processo de importação recorrente a partir de planilhas.
-  * Implementar interface no frontend para upload da planilha.
-  * Lidar com diferenças nos dados da planilha (ex.: nome da turma diferente do padrão interno).
-  * Avaliar se esse recurso deve estar no **superuser** ou em **servidores**. Melhor que seja no superuser!
-  * A implementação precisa ser robusta, compatível com **ambiente de desenvolvimento** e **produção**.
-  * **Nota:** Verificar se o Django já oferece uma solução adequada.
-  * A planilha não vai ter Matricula, então teremos que tirar. Pra não imterromper ou dar trabalho, talvez seja o caso de mudar para numeração mesmo, um marcador aleatório ou sequencial mesmo, ex: "id". A planilha não vai ter escrito turma como "3º Ano Eletro". Ela tem outro codinome exemplo "MIEL125IA". Teremos que tratar isso. Outro detalhe é que na planilha terá mais informações e sobre precisaremos de Nome(nome_completo), Turma. As turma são: 1º eletro(MIEL125IA), 2º eletro(MIEL124IA), 3º eltro(MIEL123IA); 1º info(MIII125IA), 2º info(MIII124IA), 3º info(MIII123IA); - "25, 24, 23" seria o ano que ingressou na escola então há um padrão pra proximas inserções de planilha.
-
-* [ ] **Filtro de Digitais (Alunos)**
-
-  * Criar filtros para identificar:
-
-    * Alunos com **0 digitais** → *Não cadastrados*.
-    * Alunos com **1 digital** → *Parcialmente cadastrados*.
-  * O filtro deve **persistir durante a navegação**.
+  * Botão de cadastro de digital não está conseguindo estabelecer/pedir conexão com o dispositivo. Só fica disponivel quando eu reinicio o dispositivo.
+  * Corrigir: não permitir que servidor apague aluno, permitir que o Superuser faça isso com sua confirmação de digital. O mesmo se aplica para apagar digital do aluno.
+  * Corrigir: Não permitir que servidor cadastre novo aluno. Apenas o superuser(com confirmação de digital também).
 
 ---
 
@@ -58,6 +42,8 @@
 ## 🎨 Correções de Layout
 
 * Melhorar **contraste** e **destaque das cores** na página de **Distribuição de Lanches**.
+* Status do leitor parou de funcionar novamente
+* Corrigir sons, muito ruim sempre ter que clicar na tela para eles funcionarem
 
 ---
 

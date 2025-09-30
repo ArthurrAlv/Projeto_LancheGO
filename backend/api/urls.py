@@ -25,6 +25,7 @@ urlpatterns = [
     # Rotas para Alunos
     path('alunos/', views.AlunoListCreate.as_view(), name='aluno-list-create'),
     path('alunos/<int:pk>/', views.AlunoRetrieveUpdateDestroy.as_view(), name='aluno-detail'),
+    path('alunos/upload-planilha/', views.AlunoUploadPlanilhaView.as_view(), name='aluno-upload-planilha'),
 
     # Rotas para Servidores
     path('servidores/', views.ServidorList.as_view(), name='servidor-list'),

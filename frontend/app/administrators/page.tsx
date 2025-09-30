@@ -21,7 +21,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Pencil, Trash2, Fingerprint, Loader2, Eye, EyeOff, LogOut, ShieldAlert, CheckCircle, XCircle, Usb, PlugZap } from "lucide-react"
+import { Plus, Pencil, Trash2, Fingerprint, Loader2, Eye, EyeOff, LogOut, ShieldAlert, CheckCircle, XCircle, Usb, PlugZap, Search } from "lucide-react"
 import apiClient from "@/lib/api"
 import { useAuth } from "@/context/AuthContext"
 import { useToast } from "@/components/ui/use-toast";
@@ -59,6 +59,9 @@ export default function ServersManagementPage() {
   const [isEnrolling, setIsEnrolling] = useState(false)
   const [readerStatus, setReaderStatus] = useState<"connected" | "disconnected">("disconnected");
   const ws = useRef<WebSocket | null>(null)
+
+  // Busca
+  const [searchTerm, setSearchTerm] = useState("");
 
   const { token, logout } = useAuth()
   const router = useRouter()
@@ -193,6 +196,11 @@ export default function ServersManagementPage() {
       console.error("Falha ao deletar servidor:", error);
     }
   };
+
+  // --- Busca
+  const filteredServers = servers.filter((server) => 
+    server.nome_completo.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   // --- MUDANÇA 5: FUNÇÕES DE GERENCIAMENTO DE DIGITAL ALINHADAS ---
   const handleStartEnrollment = async (server: Server | null) => {
@@ -336,6 +344,19 @@ export default function ServersManagementPage() {
         </header>
         
         <Card>
+
+          <CardHeader>
+              <div className="relative w-full max-w-sm">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <Input
+                      placeholder="Buscar servidor por nome..."
+                      className="pl-10"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+              </div>
+          </CardHeader>
+          
           <CardContent className="p-4">
             <Table>
               <TableHeader>
@@ -350,7 +371,7 @@ export default function ServersManagementPage() {
                 {isLoading ? (
                   <TableRow><TableCell colSpan={4} className="text-center">Carregando...</TableCell></TableRow>
                 ) : (
-                  servers.map((server) => (
+                  filteredServers.map((server) => (
                     <TableRow key={server.id}>
                       <TableCell>{server.nome_completo}</TableCell>
                       <TableCell>{server.user.username}</TableCell>
@@ -437,6 +458,7 @@ export default function ServersManagementPage() {
                   ) : ( <Badge variant="secondary">Limite de 2 digitais atingido</Badge> )}
                 </div>
               )}
+
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancelar</Button>

@@ -1,5 +1,8 @@
 # api/views.py (VERSÃO FINAL COM EXCLUSÃO COMPLETA)
 
+import openpyxl
+from rest_framework.parsers import MultiPartParser, FormParser
+from datetime import datetime
 from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -8,6 +11,7 @@ from .serializers import AlunoSerializer, ServidorSerializer, ServidorRegisterSe
 from rest_framework_simplejwt.tokens import RefreshToken
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+
 
 # ---- Views para Alunos ----
 class AlunoListCreate(generics.ListCreateAPIView):
@@ -204,3 +208,84 @@ class InitiateDeleteServerFingerprintsView(APIView):
             }
         )
         return Response({"message": "Ação de exclusão de digitais iniciada. Aguardando confirmação biométrica."}, status=status.HTTP_202_ACCEPTED)
+    
+
+class AlunoUploadPlanilhaView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+    parser_classes = (MultiPartParser, FormParser)
+
+    def post(self, request, *args, **kwargs):
+        planilha_file = request.FILES.get('planilha')
+        if not planilha_file:
+            return Response({"error": "Nenhuma planilha enviada."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            workbook = openpyxl.load_workbook(planilha_file)
+
+            # --- MUDANÇA PRINCIPAL: Inicializa os contadores fora do loop ---
+            alunos_criados = 0
+            alunos_existentes = 0
+            alunos_turma_invalida = 0
+            erros_reais = []
+
+            # --- MUDANÇA PRINCIPAL: Itera sobre TODAS as planilhas (abas) no arquivo ---
+            for sheet in workbook.worksheets:
+                
+                # A lógica de mapeamento e leitura de colunas agora acontece para cada aba
+                current_year = datetime.now().year
+                ano_1 = current_year % 100
+                ano_2 = (current_year - 1) % 100
+                ano_3 = (current_year - 2) % 100
+
+                turma_map = {
+                    f"MIEL1{ano_1}IA": "1E", f"MIII1{ano_1}IA": "1I",
+                    f"MIEL1{ano_2}IA": "2E", f"MIII1{ano_2}IA": "2I",
+                    f"MIEL1{ano_3}IA": "3E", f"MIII1{ano_3}IA": "3I",
+                }
+
+                headers = [str(cell.value).strip().lower() if cell.value else "" for cell in sheet[1]]
+                try:
+                    nome_col_index = headers.index("nome")
+                    turma_col_index = headers.index("turma")
+                except ValueError:
+                    # Se uma aba não tiver os cabeçalhos corretos, ela é pulada
+                    erros_reais.append(f"Aba '{sheet.title}' ignorada: Cabeçalhos 'Nome' e/ou 'Turma' não encontrados.")
+                    continue
+
+                # Itera sobre as linhas da aba atual
+                for row_index, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
+                    try:
+                        nome_completo = row[nome_col_index]
+                        codinome_turma = row[turma_col_index]
+
+                        if not nome_completo or not codinome_turma:
+                            continue
+                        
+                        codinome_turma_str = str(codinome_turma).strip()
+                        turma = turma_map.get(codinome_turma_str)
+
+                        if not turma:
+                            alunos_turma_invalida += 1
+                            continue
+
+                        if Aluno.objects.filter(nome_completo__iexact=nome_completo, turma=turma).exists():
+                            alunos_existentes += 1
+                            continue
+                        
+                        Aluno.objects.create(nome_completo=nome_completo, turma=turma)
+                        alunos_criados += 1
+                    
+                    except Exception as e:
+                        erros_reais.append(f"Aba '{sheet.title}', Linha {row_index}: Erro inesperado - {str(e)}")
+
+            # O relatório final agora é um resumo de todas as abas processadas
+            return Response({
+                "message": "Processamento da planilha concluído.",
+                "criados": alunos_criados,
+                "existentes_ignorados": alunos_existentes,
+                "turmas_invalidas_ignoradas": alunos_turma_invalida,
+                "erros": erros_reais
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": f"Erro grave ao abrir ou processar a planilha: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

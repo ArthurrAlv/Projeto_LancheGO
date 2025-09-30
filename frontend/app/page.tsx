@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { User, Lock, Fingerprint, Loader2 } from "lucide-react"
+import { User, Lock, Fingerprint, Loader2, Eye, EyeOff } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import apiClient from "@/lib/api"
 
@@ -24,6 +24,7 @@ export default function LoginPage() {
   const router = useRouter()
   const { login } = useAuth()
   const ws = useRef<WebSocket | null>(null)
+  const [showPassword, setShowPassword] = useState(false);
 
   // --- WEBSOCKET PARA LOGIN BIOMÉTRICO ---
   useEffect(() => {
@@ -118,13 +119,22 @@ export default function LoginPage() {
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <Input
                   id="password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}   // <-- alterna entre senha e texto
                   placeholder="Digite sua senha"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10"
                   required
                 />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 py-2"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
               </div>
             </div>
 
