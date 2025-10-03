@@ -211,49 +211,69 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         self.stdout.write(self.style.SUCCESS('Iniciando gerenciador de hardware unificado...'))
-        # --- Chama a função de detecção antes de iniciar o loop ---
-        serial_port = find_serial_port_by_hwid()
-        if not serial_port:
-            self.stdout.write(self.style.ERROR('Não foi possível iniciar o worker. Dispositivo LancheGO não encontrado.'))
-            return
+        asyncio.run(self.main_loop())
 
-        asyncio.run(self.main_loop(serial_port))
-
-    async def main_loop(self, serial_port):
+    async def main_loop(self):
         await self.channel_layer.group_add('serial_worker_group', 'serial_worker_channel')
+        is_connected = False
+
         while True:
-            try:
-                self.ser = serial.Serial(serial_port, BAUD_RATE, timeout=0.1)
-                self.stdout.write(self.style.SUCCESS(f'Conectado com sucesso a {serial_port}'))
-                for group_name in ['login_group', 'dashboard_group']: await self.channel_layer.group_send(group_name, {'type': 'broadcast_message', 'message': {'type': 'status.leitor', 'status': 'conectado'}})
-                
-                while True:
-                    if self.ser.in_waiting > 0:
-                        line = self.ser.readline().decode('utf-8').strip()
-                        if line:
-                            self.stdout.write(f'<< DADO DO HARDWARE: {line}')
-                            await process_serial_data(line, self.channel_layer, self)
-                    try:
-                        message = await asyncio.wait_for(self.channel_layer.receive('serial_worker_channel'), timeout=0.01)
-                        # --- NOVA LÓGICA PARA ARMAR AÇÕES ---
-                        if message['type'] == 'arm.action':
-                            await self.cancel_pending_action() # Cancela qualquer ação anterior
-                            self.pending_action = message['action']
-                            self.stdout.write(self.style.WARNING(f"AÇÃO ARMADA: {self.pending_action} - Aguardando confirmação por {ACTION_TIMEOUT}s"))
-                            self.action_timer = asyncio.get_event_loop().call_later(ACTION_TIMEOUT, lambda: asyncio.create_task(self.cancel_pending_action()))
-                            await self.channel_layer.group_send('dashboard_group', {'type': 'broadcast_message', 'message': {'type': 'action.feedback', 'status': 'info', 'message': 'Ação iniciada! Aproxime a digital de um SUPERUSUÁRIO para confirmar.'}})
+            serial_port = find_serial_port_by_hwid()
+
+            if serial_port:
+                if not is_connected:
+                    self.stdout.write(self.style.SUCCESS(f"Dispositivo encontrado na porta {serial_port}. Tentando conectar..."))
+                    is_connected = True
+
+                try:
+                    self.ser = serial.Serial(serial_port, BAUD_RATE, timeout=0.1)
+                    self.stdout.write(self.style.SUCCESS(f'Conectado com sucesso a {serial_port}'))
+                    
+                    # Anuncia o status 'conectado' para todos os grupos
+                    for group_name in ['login_group', 'dashboard_group']:
+                        await self.channel_layer.group_send(group_name, {'type': 'broadcast_message', 'message': {'type': 'status.leitor', 'status': 'conectado'}})
+
+                    # Loop principal de operação enquanto estiver conectado
+                    while True:
+                        if self.ser.in_waiting > 0:
+                            line = self.ser.readline().decode('utf-8').strip()
+                            if line:
+                                self.stdout.write(f'<< DADO DO HARDWARE: {line}')
+                                await process_serial_data(line, self.channel_layer, self)
                         
-                        elif message['type'] == 'execute.command':
-                            command = message['command']
-                            self.stdout.write(self.style.WARNING(f'>> COMANDO DO SITE: {command}'))
-                            self.ser.write(f'{command}\n'.encode('utf-8'))
-                    except asyncio.TimeoutError: pass
-            except serial.SerialException:
-                self.stdout.write(self.style.ERROR(f'Não foi possível conectar a {serial_port}. Tentando novamente...'))
-                if self.channel_layer:
-                    for group_name in ['login_group', 'dashboard_group']: await self.channel_layer.group_send(group_name, {'type': 'broadcast_message', 'message': {'type': 'status.leitor', 'status': 'desconectado'}})
-                await asyncio.sleep(1)
-            except Exception as e:
-                self.stdout.write(self.style.ERROR(f'Ocorreu um erro inesperado: {e}'))
-                if self.ser and self.ser.is_open: self.ser.close()
-                await asyncio.sleep(1)
+                        try:
+                            message = await asyncio.wait_for(self.channel_layer.receive('serial_worker_channel'), timeout=0.01)
+                            # ... (lógica para 'arm.action' e 'execute.command' continua a mesma)
+                            if message['type'] == 'arm.action':
+                                await self.cancel_pending_action()
+                                self.pending_action = message['action']
+                                self.stdout.write(self.style.WARNING(f"AÇÃO ARMADA: {self.pending_action} - Aguardando por {ACTION_TIMEOUT}s"))
+                                self.action_timer = asyncio.get_event_loop().call_later(ACTION_TIMEOUT, lambda: asyncio.create_task(self.cancel_pending_action()))
+                                await self.channel_layer.group_send('dashboard_group', {'type': 'broadcast_message', 'message': {'type': 'action.feedback', 'status': 'info', 'message': 'Ação iniciada! Aproxime a digital de um SUPERUSUÁRIO para confirmar.'}})
+                            elif message['type'] == 'execute.command':
+                                command = message['command']
+                                self.stdout.write(self.style.WARNING(f'>> COMANDO DO SITE: {command}'))
+                                self.ser.write(f'{command}\n'.encode('utf-8'))
+                        except asyncio.TimeoutError:
+                            pass
+
+                except serial.SerialException:
+                    self.stdout.write(self.style.ERROR(f'A conexão com {serial_port} foi perdida. Procurando novamente...'))
+                    if self.ser: self.ser.close()
+                    self.ser = None
+                    is_connected = False
+                    # Anuncia o status 'desconectado'
+                    for group_name in ['login_group', 'dashboard_group']:
+                        await self.channel_layer.group_send(group_name, {'type': 'broadcast_message', 'message': {'type': 'status.leitor', 'status': 'desconectado'}})
+                    await asyncio.sleep(2)
+            
+            else: # Se serial_port for None
+                if is_connected:
+                    self.stdout.write(self.style.ERROR('Dispositivo LancheGO desconectado. Procurando novamente...'))
+                    is_connected = False
+                    # Anuncia o status 'desconectado'
+                    for group_name in ['login_group', 'dashboard_group']:
+                        await self.channel_layer.group_send(group_name, {'type': 'broadcast_message', 'message': {'type': 'status.leitor', 'status': 'desconectado'}})
+                
+                # Se não encontrar a porta, espera um pouco e tenta de novo
+                await asyncio.sleep(2)
