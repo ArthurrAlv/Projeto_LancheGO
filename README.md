@@ -8,13 +8,16 @@
 
 * **Correções críticas:**
 
-  * Botão de cadastro de digital não está conseguindo estabelecer/pedir conexão com o dispositivo. Só fica disponivel quando eu reinicio o dispositivo.
-  * Corrigir: não permitir que servidor apague aluno, permitir que o Superuser faça isso com sua confirmação de digital. O mesmo se aplica para apagar digital do aluno.
-  * Corrigir: Não permitir que servidor cadastre novo aluno. Apenas o superuser(com confirmação de digital caso não seja um superuser logado).
+O objetivo principal é corrigir funcionalidades que pararam de funcionar corretamente após a implementação da detecção automática da porta serial do hardware.
 
-* **Não criticas mas que talvez se relacione:**
-  * Status do leitor parou de funcionar novamente, precisa ser ajustado.
-  * Corrigir sons, muito ruim sempre ter que clicar na tela para eles funcionarem. Procurar uma melhor opção.
+Os problemas notados são:
+
+1.  **Status do Leitor Não Atualiza Automaticamente:** O indicador de "Leitor Conectado" / "Leitor Desconectado" nas páginas web (`/dashboard`, `/students`, `/administrators`) não reflete mais o estado real do dispositivo em tempo real. Ele só atualiza o status corretamente se o dispositivo for desconectado e reconectado com a página aberta.
+
+3.  **Regras de Permissão Incorretas:** O objetivo era implementar novas regras de segurança, QUE JÁ EXISTEM, como na exclusão em massa dos alunos, mas não nos pontos abaixo:
+    * Apenas `superusers` podem cadastrar, apagar alunos ou editar(pedir digital de superuser como confirmação como na exlusão em massa). - O login dirá -
+
+    * Corrigir sons, muito ruim sempre ter que clicar na tela para eles funcionarem. Procurar uma melhor opção.
 
 ---
 
