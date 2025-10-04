@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation"
 import { Clock, CheckCircle, Usb, AlertTriangle, PlugZap } from "lucide-react" // XCircle foi removido
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/context/AuthContext"
+import { TURMA_NOMES } from "@/lib/utils"
 
 // --- ESTADO DE ERRO REMOVIDO ---
 type BiometricState = "waiting" | "success" | "warning"
@@ -152,7 +153,7 @@ export default function DashboardPage() {
             <CheckCircle className="h-16 w-16 text-green-500" />
             <p className="mt-4 text-xl font-semibold text-green-600">LANCHE LIBERADO</p>
             <p className="text-2xl font-bold mt-2">{currentStudent?.nome_completo}</p>
-            <p className="text-lg text-gray-500">{currentStudent?.turma}</p>
+            <p className="text-lg text-gray-500">{TURMA_NOMES[currentStudent?.turma || ""] || currentStudent?.turma}</p>
           </div>
         )
       case "warning":
@@ -161,7 +162,7 @@ export default function DashboardPage() {
             <AlertTriangle className="h-16 w-16 text-yellow-500" />
             <p className="mt-4 text-xl font-semibold text-yellow-600">ALUNO JÁ RETIROU O LANCHE HOJE</p>
             <p className="text-2xl font-bold mt-2">{currentStudent?.nome_completo}</p>
-            <p className="text-lg text-gray-500">{currentStudent?.turma}</p>
+            <p className="text-lg text-gray-500">{TURMA_NOMES[currentStudent?.turma || ""] || currentStudent?.turma}</p>
           </div>
         )
       // --- CASE DE ERROR/NOT_FOUND REMOVIDO ---
@@ -217,7 +218,7 @@ export default function DashboardPage() {
                         <div key={index} className="flex flex-col space-y-1 pb-3 border-b last:border-b-0">
                             <span className="font-medium text-sm text-foreground">{withdrawal.name}</span>
                             <span className="text-xs text-muted-foreground">
-                                {withdrawal.turma} - {withdrawal.time}
+                                {TURMA_NOMES[withdrawal.turma] || withdrawal.turma} - {withdrawal.time}
                             </span>
                         </div>
                     ))

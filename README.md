@@ -12,12 +12,10 @@ O objetivo principal é corrigir funcionalidades que pararam de funcionar corret
 
 Os problemas notados são:
 
-1.  **Status do Leitor Não Atualiza Automaticamente:** O indicador de "Leitor Conectado" / "Leitor Desconectado" nas páginas web (`/dashboard`, `/students`, `/administrators`) não reflete mais o estado real do dispositivo em tempo real. Ele só atualiza o status corretamente se o dispositivo for desconectado e reconectado com a página aberta.
-
-3.  **Regras de Permissão Incorretas:** O objetivo era implementar novas regras de segurança, QUE JÁ EXISTEM, como na exclusão em massa dos alunos, mas não nos pontos abaixo:
+1.  **Regras de Permissão Incorretas:** O objetivo era implementar novas regras de segurança, QUE JÁ EXISTEM, como na exclusão em massa dos alunos, mas não nos pontos abaixo:
     * Apenas `superusers` podem cadastrar, apagar alunos ou editar(pedir digital de superuser como confirmação como na exlusão em massa). - O login dirá -
 
-    * Corrigir sons, muito ruim sempre ter que clicar na tela para eles funcionarem. Procurar uma melhor opção.
+2.  * Corrigir sons, muito ruim sempre ter que clicar na tela para eles funcionarem. Procurar uma melhor opção.
 
 ---
 

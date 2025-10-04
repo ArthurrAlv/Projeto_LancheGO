@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { TURMA_NOMES } from "@/lib/utils"
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -532,12 +533,12 @@ export default function StudentsPage() {
                 ) : (
                   filteredStudents.map((student) => (
                     <TableRow key={student.id}>
-                      <TableCell className="font-medium">{student.nome_completo}</TableCell>
+                      <TableCell className="font-medium ">{student.nome_completo}</TableCell>
                       <TableCell>{student.matricula}</TableCell>
-                      <TableCell>{student.turma}</TableCell>
+                      <TableCell>{TURMA_NOMES[student.turma] || student.turma}</TableCell>
                       <TableCell>
                         <div className="flex items-center">
-                          {student.digitais_count === 0 && <Badge variant="secondary">Inativo</Badge>}
+                          {student.digitais_count === 0 && <Badge variant="destructive">Inativo</Badge>}
                           {student.digitais_count === 1 && (
                             <>
                               <Badge className="bg-yellow-500 hover:bg-yellow-600">Parcial</Badge>
