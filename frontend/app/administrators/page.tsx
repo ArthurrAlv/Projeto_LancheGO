@@ -67,70 +67,6 @@ export default function ServersManagementPage() {
   const router = useRouter()
   const { toast } = useToast();
 
-  // --- MUDANÇA 3: LÓGICA DE WEBSOCKET ATUALIZADA E ALINHADA ---
-  const setupWebSocket = () => {
-    if (ws.current && ws.current.readyState === WebSocket.OPEN) return;
-    const wsUrl = "ws://127.0.0.1:8000/ws/hardware/dashboard_group/";
-    ws.current = new WebSocket(wsUrl);
-
-    ws.current.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (!editingServer) return;
-
-      switch (data.type) {
-        case "cadastro.feedback":
-          setEnrollmentStatus({ message: data.message, state: "loading" });
-          break;
-        case "cadastro.success":
-          handleAssociateFingerprint(data.sensor_id, editingServer.id);
-          break;
-        case "cadastro.error":
-          setEnrollmentStatus({ message: `Erro no leitor: ${data.message}`, state: "error" });
-          setTimeout(() => {
-            setIsEnrolling(false);
-            setEnrollmentStatus({ message: "Aguardando início...", state: "idle" });
-          }, 3000);
-          break;
-        case "status.leitor":
-          setReaderStatus(data.status === "conectado" ? "connected" : "disconnected");
-          break;
-
-        // --- NOVO CASE PARA TRATAR FEEDBACK DE EXCLUSÃO ---
-        case "delete.result":
-          if (data.status === "OK") {
-            // A digital foi apagada com sucesso, recarregamos a lista de servidores
-            console.log(`Digital ${data.sensor_id} do servidor apagada com sucesso. Atualizando lista...`);
-            fetchServers();
-          } else {
-            console.error(`Falha ao apagar digital ${data.sensor_id} do servidor no hardware.`);
-            alert(`Falha ao apagar uma das digitais do servidor no leitor. Tente novamente.`);
-          }
-          break;
-        
-        case "action.feedback":
-            toast({
-                title: data.status === "success" ? "Sucesso!" : (data.status === "error" ? "Erro!" : "Aviso"),
-                description: data.message,
-                variant: data.status === "error" ? "destructive" : "default",
-            });
-            if (data.status === "success") {
-                fetchServers(); // Atualiza a lista após a operação
-            }
-            break;
-        // --- NOVO: Tratando feedback da limpeza geral ---
-        case "clearall.result":
-             toast({
-                title: data.status === "OK" ? "Operação Concluída" : "Falha na Operação",
-                description: data.status === "OK" ? "Memória do leitor limpa com sucesso!" : "O hardware reportou um erro ao limpar a memória.",
-                variant: data.status === "OK" ? "default" : "destructive",
-            });
-            fetchServers();
-            break;
-      }
-    };
-    
-    ws.current.onclose = () => setReaderStatus("disconnected");
-  };
 
   const fetchServers = async () => {
     if (!token) return;
@@ -148,9 +84,95 @@ export default function ServersManagementPage() {
   }
 
   useEffect(() => {
-    setupWebSocket();
-    fetchServers();
-    return () => { ws.current?.close(); }
+      if (!token) return;
+
+      let isMounted = true; // Flag para evitar atualizações
+
+      const connectWebSocket = () => {
+          if (ws.current && ws.current.readyState === WebSocket.OPEN) return;
+          if (!isMounted) return;
+
+          const wsUrl = "ws://127.0.0.1:8000/ws/hardware/dashboard_group/";
+          ws.current = new WebSocket(wsUrl);
+
+          ws.current.onopen = () => {
+              console.log("AdminPage: WebSocket Conectado!");
+          };
+
+          ws.current.onclose = () => {
+              if (!isMounted) return;
+              console.log("AdminPage: WebSocket Desconectado. Tentando reconectar em 3s...");
+              setReaderStatus("disconnected");
+              setTimeout(connectWebSocket, 2000);
+          };
+
+          ws.current.onerror = (error) => {
+              console.error("AdminPage: Erro no WebSocket:", error);
+              ws.current?.close();
+          };
+
+          ws.current.onmessage = (event) => {
+              const data = JSON.parse(event.data);
+              if (!editingServer && (data.type === "cadastro.feedback" || data.type === "cadastro.success" || data.type === "cadastro.error")) return;
+
+              switch (data.type) {
+                  case "cadastro.feedback":
+                      setEnrollmentStatus({ message: data.message, state: "loading" });
+                      break;
+                  case "cadastro.success":
+                      if(editingServer) handleAssociateFingerprint(data.sensor_id, editingServer.id);
+                      break;
+                  case "cadastro.error":
+                      setEnrollmentStatus({ message: `Erro no leitor: ${data.message}`, state: "error" });
+                      setTimeout(() => {
+                          setIsEnrolling(false);
+                          setEnrollmentStatus({ message: "Aguardando início...", state: "idle" });
+                      }, 3000);
+                      break;
+                  case "status.leitor":
+                      setReaderStatus(data.status === "conectado" ? "connected" : "disconnected");
+                      break;
+                  case "delete.result":
+                      if (data.status === "OK") {
+                          console.log(`Digital ${data.sensor_id} do servidor apagada com sucesso. Atualizando lista...`);
+                          fetchServers();
+                      } else {
+                          console.error(`Falha ao apagar digital ${data.sensor_id} do servidor no hardware.`);
+                          alert(`Falha ao apagar uma das digitais do servidor no leitor. Tente novamente.`);
+                      }
+                      break;
+                  case "action.feedback":
+                      toast({
+                          title: data.status === "success" ? "Sucesso!" : (data.status === "error" ? "Erro!" : "Aviso"),
+                          description: data.message,
+                          variant: data.status === "error" ? "destructive" : "default",
+                      });
+                      if (data.status === "success") {
+                          fetchServers();
+                      }
+                      break;
+                  case "clearall.result":
+                      toast({
+                          title: data.status === "OK" ? "Operação Concluída" : "Falha na Operação",
+                          description: data.status === "OK" ? "Memória do leitor limpa com sucesso!" : "O hardware reportou um erro ao limpar a memória.",
+                          variant: data.status === "OK" ? "default" : "destructive",
+                      });
+                      fetchServers();
+                      break;
+              }
+          };
+      };
+
+      connectWebSocket();
+      fetchServers();
+
+      return () => {
+          isMounted = false;
+          if (ws.current) {
+              ws.current.onclose = null;
+              ws.current.close();
+          }
+      }
   }, [token, editingServer]);
 
   // --- MUDANÇA 4: FUNÇÃO DE SALVAR COM VALIDAÇÃO E MELHOR TRATAMENTO DE ERRO ---
@@ -207,7 +229,7 @@ export default function ServersManagementPage() {
     if (!server || readerStatus === 'disconnected') return;
     setIsEnrolling(true);
     setEnrollmentStatus({ message: "Conectando ao hardware...", state: "loading" });
-    setupWebSocket();
+
     setTimeout(() => {
       if (ws.current && ws.current.readyState === WebSocket.OPEN) {
         ws.current.send(JSON.stringify({ type: 'hardware.command', command: 'CADASTRO' }));

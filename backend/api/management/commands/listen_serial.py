@@ -7,6 +7,7 @@ from django.core.management.base import BaseCommand
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync, sync_to_async
 from api.models import Aluno, Digital, RegistroRetirada, Servidor
+from django.core.cache import cache 
 from api.serializers import AlunoSerializer
 from datetime import time as dtime
 from django.utils import timezone
@@ -58,7 +59,7 @@ async def process_serial_data(line, channel_layer, command_instance):
             await command_instance.cancel_pending_action(send_message=False)
         return # Impede que o resto da função seja executado
 
-    # --- LÓGICA ORIGINAL (sem ação pendente) ---
+
     message_to_send = None
     target_group = 'dashboard_group'
 
@@ -217,6 +218,8 @@ class Command(BaseCommand):
         await self.channel_layer.group_add('serial_worker_group', 'serial_worker_channel')
         is_connected = False
 
+        await sync_to_async(cache.set)('hardware_reader_status', 'desconectado', timeout=None)
+
         while True:
             serial_port = find_serial_port_by_hwid()
 
@@ -229,6 +232,9 @@ class Command(BaseCommand):
                     self.ser = serial.Serial(serial_port, BAUD_RATE, timeout=0.1)
                     self.stdout.write(self.style.SUCCESS(f'Conectado com sucesso a {serial_port}'))
                     
+                    # ---> ATUALIZA O CACHE
+                    await sync_to_async(cache.set)('hardware_reader_status', 'conectado', timeout=None)
+
                     # Anuncia o status 'conectado' para todos os grupos
                     for group_name in ['login_group', 'dashboard_group']:
                         await self.channel_layer.group_send(group_name, {'type': 'broadcast_message', 'message': {'type': 'status.leitor', 'status': 'conectado'}})
@@ -242,18 +248,17 @@ class Command(BaseCommand):
                                 await process_serial_data(line, self.channel_layer, self)
                         
                         try:
-                            message = await asyncio.wait_for(self.channel_layer.receive('serial_worker_channel'), timeout=0.01)
-                            # ... (lógica para 'arm.action' e 'execute.command' continua a mesma)
-                            if message['type'] == 'arm.action':
-                                await self.cancel_pending_action()
-                                self.pending_action = message['action']
-                                self.stdout.write(self.style.WARNING(f"AÇÃO ARMADA: {self.pending_action} - Aguardando por {ACTION_TIMEOUT}s"))
-                                self.action_timer = asyncio.get_event_loop().call_later(ACTION_TIMEOUT, lambda: asyncio.create_task(self.cancel_pending_action()))
-                                await self.channel_layer.group_send('dashboard_group', {'type': 'broadcast_message', 'message': {'type': 'action.feedback', 'status': 'info', 'message': 'Ação iniciada! Aproxime a digital de um SUPERUSUÁRIO para confirmar.'}})
-                            elif message['type'] == 'execute.command':
-                                command = message['command']
-                                self.stdout.write(self.style.WARNING(f'>> COMANDO DO SITE: {command}'))
-                                self.ser.write(f'{command}\n'.encode('utf-8'))
+                            message = await asyncio.wait_for(self.channel_layer.receive('serial_worker_channel'), timeout=0.01) #
+                            if message['type'] == 'arm.action': #
+                                await self.cancel_pending_action() #
+                                self.pending_action = message['action'] #
+                                self.stdout.write(self.style.WARNING(f"AÇÃO ARMADA: {self.pending_action} - Aguardando por {ACTION_TIMEOUT}s")) #
+                                self.action_timer = asyncio.get_event_loop().call_later(ACTION_TIMEOUT, lambda: asyncio.create_task(self.cancel_pending_action())) #
+                                await self.channel_layer.group_send('dashboard_group', {'type': 'broadcast_message', 'message': {'type': 'action.feedback', 'status': 'info', 'message': 'Ação iniciada! Aproxime a digital de um SUPERUSUÁRIO para confirmar.'}}) #
+                            elif message['type'] == 'execute.command': #
+                                command = message['command'] #
+                                self.stdout.write(self.style.WARNING(f'>> COMANDO DO SITE: {command}')) #
+                                self.ser.write(f'{command}\n'.encode('utf-8')) #
                         except asyncio.TimeoutError:
                             pass
 
@@ -262,6 +267,10 @@ class Command(BaseCommand):
                     if self.ser: self.ser.close()
                     self.ser = None
                     is_connected = False
+
+                    # ---> ATUALIZA O CACHE
+                    await sync_to_async(cache.set)('hardware_reader_status', 'desconectado', timeout=None)
+
                     # Anuncia o status 'desconectado'
                     for group_name in ['login_group', 'dashboard_group']:
                         await self.channel_layer.group_send(group_name, {'type': 'broadcast_message', 'message': {'type': 'status.leitor', 'status': 'desconectado'}})
@@ -271,6 +280,10 @@ class Command(BaseCommand):
                 if is_connected:
                     self.stdout.write(self.style.ERROR('Dispositivo LancheGO desconectado. Procurando novamente...'))
                     is_connected = False
+
+                    # ---> ATUALIZA O CACHE
+                    await sync_to_async(cache.set)('hardware_reader_status', 'desconectado', timeout=None)
+
                     # Anuncia o status 'desconectado'
                     for group_name in ['login_group', 'dashboard_group']:
                         await self.channel_layer.group_send(group_name, {'type': 'broadcast_message', 'message': {'type': 'status.leitor', 'status': 'desconectado'}})

@@ -1,0 +1,68 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Iniciar Backend (ASGI)",
+			"type": "shell",
+			"command": "& '${workspaceFolder}/backend/venv/Scripts/Activate.ps1' ; daphne -p 8000 lanchego_project.asgi:application",
+			"options": {
+				"cwd": "${workspaceFolder}/backend" // Executa na pasta backend
+			},
+			"group": "build",
+			"isBackground": true,
+			"presentation": {
+				"reveal": "always",
+				"panel": "new",
+				"group": "backend_daphne"
+			}
+		},
+		{
+			"label": "Iniciar Escuta Serial",
+			"type": "shell",
+			"command": "& '${workspaceFolder}/backend/venv/Scripts/Activate.ps1' ; python manage.py listen_serial",
+			"options": {
+				"cwd": "${workspaceFolder}/backend" // Executa na pasta backend
+			},
+			"group": "build",
+			"isBackground": true,
+			"presentation": {
+				"reveal": "always",
+				"panel": "new",
+				"group": "backend_serial"
+			}
+		},
+		{
+			"label": "Iniciar Frontend",
+			"type": "shell",
+			"command": "npm run dev",
+			"options": {
+				"cwd": "${workspaceFolder}/frontend" // Executa na pasta frontend
+			},
+			"group": "build",
+			"isBackground": true,
+			"presentation": {
+				"reveal": "always",
+				"panel": "new",
+				"group": "frontend_dev"
+			}
+		},
+		{
+			"label": "Iniciar Tudo",
+			"dependsOn": [
+				"Iniciar Backend (ASGI)",
+				"Iniciar Escuta Serial",
+				"Iniciar Frontend"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared",
+				"group": "main_orchestrator"
+			},
+			"problemMatcher": []
+		}
+	]
+}

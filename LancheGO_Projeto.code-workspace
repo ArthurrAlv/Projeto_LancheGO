@@ -1,0 +1,40 @@
+{
+    "folders": [
+        {
+            "path": "."
+        }
+    ],
+    "settings": {
+        // Configurações do Python
+        "python.defaultInterpreterPath": "./backend/venv/Scripts/python.exe",
+        // "python.terminal.activateEnvironment": true, // COMENTE OU REMOVA ESTA LINHA
+
+        // --- Configuração para Auto Run Command ---
+        "auto-run-command.commands": [
+            {
+                "name": "Iniciar Backend (ASGI)",
+                "command": "& '${workspaceFolder}/backend/venv/Scripts/Activate.ps1' ; daphne -p 8000 lanchego_project.asgi:application",
+                "working_directory": "${workspaceFolder}/backend",
+                "auto": true,
+                "terminal": "new"
+            },
+            {
+                "name": "Iniciar Escuta Serial",
+                "command": "& '${workspaceFolder}/backend/venv/Scripts/Activate.ps1' ; python manage.py listen_serial",
+                "working_directory": "${workspaceFolder}/backend",
+                "auto": true,
+                "terminal": "new"
+            },
+            {
+                "name": "Iniciar Frontend",
+                "command": "npm run dev",
+                "working_directory": "${workspaceFolder}/frontend",
+                "auto": true,
+                "terminal": "new"
+            }
+        ],
+        "auto-run-command.onStartup": true,
+        // ADICIONE ISTO PARA FORÇAR O PROCESSAMENTO DE TASKS (MESMO QUE NÃO TENHA TASKS.JSON)
+        "tasks.onDidStartTask": {} 
+    }
+}

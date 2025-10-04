@@ -65,70 +65,84 @@ export default function DashboardPage() {
   }, [])
 
   useEffect(() => {
-    if (isLoading) return;
-    if (!token) {
-      router.push('/');
-      return;
-    }
-
-    const wsUrl = "ws://127.0.0.1:8000/ws/hardware/dashboard_group/";
-    ws.current = new WebSocket(wsUrl)
-
-    ws.current.onopen = () => console.log("WebSocket conectado!")
-    ws.current.onclose = () => setReaderStatus("disconnected")
-    ws.current.onerror = (error: Event) => console.error("Erro no WebSocket:", error)
-
-    ws.current.onmessage = (event) => {
-      const data = JSON.parse(event.data)
-
-      if (data.type === "identificacao.result") {
-        console.log("➡️ Tipo identificação:", data.status, "Aluno:", data.aluno)
+      if (isLoading || !token) {
+          if (!isLoading && !token) router.push('/');
+          return;
       }
 
-      switch (data.type) {
-        case "status.leitor":
-            if (data.type === "status.leitor") {
-                const newStatus = data.status === "conectado" ? "connected" : "disconnected";
-                setReaderStatus(prev => {
-                    if (prev !== newStatus) {
-                        console.log("📩 Status do leitor mudou para:", newStatus);
-                        return newStatus;
-                    }
-                    return prev;
-                });
-            }
-            break
+      let isMounted = true; // Flag para evitar atualizações de estado em componente desmontado
 
-        case "identificacao.result":
-          const studentData = data.aluno as Student
-          setCurrentStudent(studentData)
+      const connectWebSocket = () => {
+          if (ws.current && ws.current.readyState === WebSocket.OPEN) return;
+          if (!isMounted) return;
 
-          if (data.status === "LIBERADO") {
-            setBiometricState("success")
-            playSound("somSucesso")
-            if (studentData) {
-              setRecentWithdrawals(prev => [{
-                name: studentData.nome_completo,
-                turma: studentData.turma,
-                time: new Date().toLocaleTimeString('pt-BR'),
-              }, ...prev.slice(0, 4)])
-            }
-          } else if (data.status === "JÁ RETIROU") {
-            setBiometricState("warning")
-            playSound("somAviso")
-          } else if (data.status === "NAO_ENCONTRADO") {
-            setBiometricState("waiting")
+          console.log("Dashboard: Tentando conectar WebSocket...");
+          const wsUrl = "ws://127.0.0.1:8000/ws/hardware/dashboard_group/";
+          ws.current = new WebSocket(wsUrl);
+
+          ws.current.onopen = () => {
+              if (!isMounted) return;
+              console.log("Dashboard: WebSocket Conectado!");
+              // Não definimos como conectado aqui, esperamos a mensagem do backend
+          };
+
+          ws.current.onclose = () => {
+              if (!isMounted) return;
+              console.log("Dashboard: WebSocket Desconectado. Tentando reconectar em 3s...");
+              setReaderStatus("disconnected");
+              setTimeout(connectWebSocket, 2000); // Tenta reconectar
+          };
+
+          ws.current.onerror = (error) => {
+              if (!isMounted) return;
+              console.error("Dashboard: Erro no WebSocket:", error);
+              ws.current?.close(); // Força o onclose para acionar a reconexão
+          };
+
+          ws.current.onmessage = (event) => {
+              if (!isMounted) return;
+              const data = JSON.parse(event.data);
+
+              switch (data.type) {
+                  case "status.leitor":
+                      setReaderStatus(data.status === "conectado" ? "connected" : "disconnected");
+                      break;
+
+                  case "identificacao.result":
+                      const studentData = data.aluno as Student;
+                      setCurrentStudent(studentData);
+
+                      if (data.status === "LIBERADO") {
+                          setBiometricState("success");
+                          playSound("somSucesso");
+                          if (studentData) {
+                              setRecentWithdrawals(prev => [{
+                                  name: studentData.nome_completo,
+                                  turma: studentData.turma,
+                                  time: new Date().toLocaleTimeString('pt-BR'),
+                              }, ...prev.slice(0, 4)]);
+                          }
+                      } else if (data.status === "JÁ RETIROU") {
+                          setBiometricState("warning");
+                          playSound("somAviso");
+                      } else if (data.status === "NAO_ENCONTRADO") {
+                          setBiometricState("waiting"); 
+                      }
+                      break;
+              }
+          };
+      };
+
+      connectWebSocket();
+
+      return () => {
+          isMounted = false;
+          if (ws.current) {
+              ws.current.onclose = null; // Impede a tentativa de reconexão após sair da página
+              ws.current.close();
           }
-          break
-      }
-    }
-
-    return () => {
-      if(ws.current) {
-        ws.current.close();
-      }
-    }
-  }, [token, isLoading, router])
+      };
+  }, [token, isLoading, router]);
 
   const getStateIcon = () => {
      switch (biometricState) {

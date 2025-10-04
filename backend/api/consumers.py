@@ -2,6 +2,8 @@
 
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
+from django.core.cache import cache 
+
 
 class HardwareConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -21,6 +23,14 @@ class HardwareConsumer(AsyncWebsocketConsumer):
         )
         await self.accept()
         print(f"✅ WebSocket CONECTADO. Cliente entrou no grupo '{self.group_name}'")
+
+        current_status = cache.get('hardware_reader_status', 'desconectado')
+        
+        # Envia o status diretamente e APENAS para o cliente que acabou de se conectar
+        await self.send(text_data=json.dumps({
+            'type': 'status.leitor',
+            'status': current_status
+        }))
 
     async def disconnect(self, close_code):
         await self.channel_layer.group_discard(
