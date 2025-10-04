@@ -8,6 +8,8 @@ import { Clock, CheckCircle, Usb, AlertTriangle, PlugZap } from "lucide-react" /
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/context/AuthContext"
 import { TURMA_NOMES } from "@/lib/utils"
+import ClockNow from '@/components/Clock'
+
 
 // --- ESTADO DE ERRO REMOVIDO ---
 type BiometricState = "waiting" | "success" | "warning"
@@ -190,9 +192,13 @@ export default function DashboardPage() {
       <main className="flex-1 p-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold">Painel de Retirada</h1>
-          <div className={`flex items-center space-x-2 p-2 rounded-lg border text-sm font-medium ${readerStatus === 'connected' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200'}`}>
-            {readerStatus === 'connected' ? <Usb className="h-4 w-4" /> : <PlugZap className="h-4 w-4" />}
-            <span>{readerStatus === 'connected' ? 'Leitor Conectado' : 'Leitor Desconectado'}</span>
+          <div className="flex items-center space-x-4">
+            <div className={`flex items-center space-x-2 p-2 rounded-lg border text-sm font-medium ${readerStatus === 'connected' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200'}`}>
+              {readerStatus === 'connected' ? <Usb className="h-4 w-4" /> : <PlugZap className="h-4 w-4" />}
+              <span>{readerStatus === 'connected' ? 'Leitor Conectado' : 'Leitor Desconectado'}</span>
+          </div>
+
+          <ClockNow />
           </div>
         </div>
 
