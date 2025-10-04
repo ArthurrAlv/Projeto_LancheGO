@@ -12,10 +12,15 @@ O objetivo principal é corrigir funcionalidades que pararam de funcionar corret
 
 Os problemas notados são:
 
+
+* **Correções para Decidir:*
 1.  **Regras de Permissão Incorretas:** O objetivo era implementar novas regras de segurança, QUE JÁ EXISTEM, como na exclusão em massa dos alunos, mas não nos pontos abaixo:
     * Apenas `superusers` podem cadastrar, apagar alunos ou editar(pedir digital de superuser como confirmação como na exlusão em massa). - O login dirá -
 
-2.  * Corrigir sons, muito ruim sempre ter que clicar na tela para eles funcionarem. Procurar uma melhor opção.
+* *Correções de Usabilidade*
+1.  * Corrigir sons, muito ruim sempre ter que clicar na tela para eles funcionarem. Procurar uma melhor opção.
+
+2.  * Últimas Retiradas somem ao recarregar a página. Preciso que elas funcionem como a retirada: que elas sumam apenas depois das 12 da tarde e resetem novamente as 00.
 
 ---
 
