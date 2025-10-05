@@ -77,6 +77,7 @@ export default function ServersManagementPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingServer, setEditingServer] = useState<Server | null>(null);
+  const [activeToastId, setActiveToastId] = useState<string | null>(null);
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -99,9 +100,9 @@ export default function ServersManagementPage() {
   // Busca
   const [searchTerm, setSearchTerm] = useState("");
 
-  const { token, logout } = useAuth();
+const { token, logout, user: loggedInUser } = useAuth();
   const router = useRouter();
-  const { toast } = useToast();
+  const { toast, dismiss } = useToast();
 
   const fetchServers = async () => {
     if (!token) return;
@@ -158,6 +159,11 @@ export default function ServersManagementPage() {
         )
           return;
 
+        if (activeToastId && (data.type === 'action.feedback' || data.type === 'delete.result' || data.type === 'clearall.result')) {
+            dismiss(activeToastId);
+            setActiveToastId(null);
+        }
+
         switch (data.type) {
           case "cadastro.feedback":
             setEnrollmentStatus({ message: data.message, state: "loading" });
@@ -186,17 +192,17 @@ export default function ServersManagementPage() {
             break;
           case "delete.result":
             if (data.status === "OK") {
-              console.log(
-                `Digital ${data.sensor_id} do servidor apagada com sucesso. Atualizando lista...`
-              );
+              toast({
+                title: "Sucesso!",
+                description: `A digital (ID: ${data.sensor_id}) foi apagada com sucesso do hardware.`,
+              });
               fetchServers();
             } else {
-              console.error(
-                `Falha ao apagar digital ${data.sensor_id} do servidor no hardware.`
-              );
-              alert(
-                `Falha ao apagar uma das digitais do servidor no leitor. Tente novamente.`
-              );
+              toast({
+                title: "Erro de Hardware",
+                description: "O leitor reportou uma falha ao tentar apagar a digital.",
+                variant: "destructive",
+              });
             }
             break;
           case "action.feedback":
@@ -366,21 +372,25 @@ export default function ServersManagementPage() {
   };
 
   const handleInitiateDeleteFingerprints = async (serverId: number) => {
-    try {
-      const response = await apiClient.post(
-        `/actions/initiate-delete-server-fingerprints/${serverId}/`
-      );
-      toast({
+      const { id, dismiss } = toast({ // <-- Capturamos o ID e a função dismiss
         title: "Ação Iniciada",
-        description: response.data.message,
+        description: "Aguardando confirmação biométrica no leitor...",
       });
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Não foi possível iniciar a exclusão de digitais.",
-        variant: "destructive",
-      });
-    }
+      setActiveToastId(id); // Guardamos o ID do toast ativo
+
+      try {
+        await apiClient.post(
+          `/actions/initiate-delete-server-fingerprints/${serverId}/`
+        );
+      } catch (error) {
+        dismiss(); // Fecha o toast de "Aguardando" se a iniciação falhar
+        setActiveToastId(null);
+        toast({
+          title: "Erro",
+          description: "Não foi possível iniciar a exclusão de digitais.",
+          variant: "destructive",
+        });
+      }
   };
 
   // --- MUDANÇA: Função de limpar leitor agora apenas INICIA a ação ---
@@ -546,13 +556,13 @@ export default function ServersManagementPage() {
                       <TableCell className="flex items-center">
                         {server.nome_completo}
                         {/* --- MUDANÇA 1: Adicionando a Badge de Superuser --- */}
-                        {server.user.is_superuser && (
-                          <Badge
-                            variant="destructive"
-                            className="ml-2 bg-yellow-500 text-black hover:bg-yellow-500"
-                          >
-                            Superuser
-                          </Badge>
+                        {loggedInUser && loggedInUser.user_id === server.user.id && loggedInUser.is_superuser && (
+                            <Badge
+                                variant="destructive"
+                                className="ml-2 bg-yellow-500 text-black hover:bg-yellow-500"
+                            >
+                                Superuser
+                            </Badge>
                         )}
                       </TableCell>
                       <TableCell>{server.user.username}</TableCell>

@@ -117,6 +117,7 @@ class AssociateFingerprintView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
 class FingerprintLoginView(APIView):
     authentication_classes = []
     permission_classes = [permissions.AllowAny]
@@ -130,7 +131,13 @@ class FingerprintLoginView(APIView):
             digital = Digital.objects.select_related('servidor__user').get(sensor_id=sensor_id)
             if digital.servidor and digital.servidor.user:
                 user = digital.servidor.user
-                refresh = RefreshToken.for_user(user)
+                
+                # --- MUDANÇA CRÍTICA: Usando o serializer customizado ---
+                # Em vez de criar um token simples, usamos nosso serializer para
+                # criar um token completo com 'username' e 'is_superuser'.
+                serializer = MyTokenObtainPairSerializer(context={'request': request})
+                refresh = serializer.get_token(user)
+
                 return Response({
                     'refresh': str(refresh),
                     'access': str(refresh.access_token),

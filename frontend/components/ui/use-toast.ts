@@ -44,24 +44,36 @@ function dispatch(action: { type: "ADD_TOAST"; toast: ToasterToast } | { type: "
 }
 
 export function useToast() {
-  const [state, setState] = React.useState<State>(memoryState)
+  const [state, setState] = React.useState<State>(memoryState);
 
   React.useEffect(() => {
-    listeners.push(setState)
+    listeners.push(setState);
     return () => {
-      const index = listeners.indexOf(setState)
-      if (index > -1) listeners.splice(index, 1)
-    }
-  }, [])
+      const index = listeners.indexOf(setState);
+      if (index > -1) listeners.splice(index, 1);
+    };
+  }, [state]);
 
   return {
     ...state,
     toast: (props: Omit<ToasterToast, "id">) => {
-      const id = genId()
-      dispatch({ type: "ADD_TOAST", toast: { ...props, id } })
-      setTimeout(() => dispatch({ type: "DISMISS_TOAST", toastId: id }), TOAST_REMOVE_DELAY)
-      return id
+      const id = genId();
+      
+      // Cria a notificação
+      dispatch({ type: "ADD_TOAST", toast: { ...props, id } });
+
+      // Inicia um timer para fechar automaticamente APENAS se não for um 'aviso' de ação
+      if (props.variant !== "default" || !props.title?.toString().toLowerCase().includes("iniciada")) {
+          setTimeout(() => dispatch({ type: "DISMISS_TOAST", toastId: id }), TOAST_REMOVE_DELAY);
+      }
+      
+      // Retorna funções para controle manual
+      return {
+        id: id,
+        dismiss: () => dispatch({ type: "DISMISS_TOAST", toastId: id }),
+        update: (props: Omit<ToasterToast, "id">) => dispatch({ type: "ADD_TOAST", toast: { ...props, id } }),
+      };
     },
     dismiss: (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId }),
-  }
+  };
 }
