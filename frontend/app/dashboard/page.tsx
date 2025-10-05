@@ -2,6 +2,7 @@
 
 "use client"
 
+import '../globals.css'
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Clock, CheckCircle, Usb, AlertTriangle, PlugZap } from "lucide-react" // XCircle foi removido
@@ -148,32 +149,42 @@ export default function DashboardPage() {
   }, [token, isLoading, router]);
 
   const getStateIcon = () => {
-     switch (biometricState) {
+    switch (biometricState) {
       case "success":
         return (
-          <div className="flex flex-col items-center">
-            <CheckCircle className="h-16 w-16 text-green-500" />
-            <p className="mt-4 text-xl font-semibold text-green-600">LANCHE LIBERADO</p>
-            <p className="text-2xl font-bold mt-2">{currentStudent?.nome_completo}</p>
-            <p className="text-lg text-gray-500">{TURMA_NOMES[currentStudent?.turma || ""] || currentStudent?.turma}</p>
+          <div className="flex h-full w-full flex-col items-center justify-center rounded-2xl border-4 border-[var(--status-complete)] bg-green-50/25 p-6">
+            {/* Ícone maior */}
+            <CheckCircle className="h-24 w-24 text-[var(--status-complete)]" />
+            {/* Título maior e com mais margem */}
+            <p className="mt-6 text-3xl font-semibold text-[var(--status-complete)]">LANCHE LIBERADO</p>
+            {/* Nome maior e com mais margem */}
+            <p className="mt-3 text-4xl font-bold">{currentStudent?.nome_completo}</p>
+            {/* Turma maior */}
+            <p className="mt-1 text-xl text-gray-500">{TURMA_NOMES[currentStudent?.turma || ""] || currentStudent?.turma}</p>
           </div>
         )
+
       case "warning":
         return (
-          <div className="flex flex-col items-center">
-            <AlertTriangle className="h-16 w-16 text-yellow-500" />
-            <p className="mt-4 text-xl font-semibold text-yellow-600">ALUNO JÁ RETIROU O LANCHE HOJE</p>
-            <p className="text-2xl font-bold mt-2">{currentStudent?.nome_completo}</p>
-            <p className="text-lg text-gray-500">{TURMA_NOMES[currentStudent?.turma || ""] || currentStudent?.turma}</p>
+          <div className="flex h-full w-full flex-col items-center justify-center rounded-2xl border-4 border-[var(--status-partial)] bg-amber-50/25 p-6">
+            {/* Ícone maior */}
+            <AlertTriangle className="h-24 w-24 text-[var(--status-partial)]" />
+            {/* Título maior e com mais margem */}
+            <p className="mt-6 text-3xl font-semibold text-[var(--status-partial)]">ALUNO JÁ RETIROU O LANCHE HOJE</p>
+            {/* Nome maior e com mais margem */}
+            <p className="mt-3 text-4xl font-bold">{currentStudent?.nome_completo}</p>
+            {/* Turma maior */}
+            <p className="mt-1 text-xl text-gray-500">{TURMA_NOMES[currentStudent?.turma || ""] || currentStudent?.turma}</p>
           </div>
         )
-      // --- CASE DE ERROR/NOT_FOUND REMOVIDO ---
+      
       case "waiting":
       default:
         return (
-          <div className="flex flex-col items-center">
-            <Clock className="h-16 w-16 text-blue-500" />
-            <p className="mt-4 text-xl font-semibold">Aguardando leitura biométrica...</p>
+          // Também aumentei o conteúdo aqui para manter a consistência
+          <div className="flex flex-col items-center justify-center w-full h-full">
+            <Clock className="h-24 w-24 text-blue-500" />
+            <p className="mt-6 text-3xl font-semibold">Aguardando leitura biométrica...</p>
           </div>
         )
     }
@@ -204,8 +215,8 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
-            <Card className="h-[calc(100vh-12rem)]">
-              <CardContent className="flex items-center justify-center h-full">
+            <Card className="h-[calc(100vh-12rem)] flex flex-col overflow-hidden rounded-2xl p-0">
+              <CardContent className="flex flex-1 p-0">
                 {getStateIcon()}
               </CardContent>
             </Card>
