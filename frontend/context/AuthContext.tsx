@@ -54,6 +54,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             }
         } else {
             // Limpa o estado se não houver token
+            // Garante que o token seja removido do armazenamento permanente
+            localStorage.removeItem('authToken');
             setToken(null);
             setUser(null);
             delete apiClient.defaults.headers['Authorization'];

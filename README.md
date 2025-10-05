@@ -47,19 +47,7 @@ Os problemas notados são:
 
 ## 🎨 Correções de Usabilidade
 
-* Muitas vezes o sistema me pede login novamente. O problema é que, quando isso acontece, ele me deixa continuar na página mas sem mostrar os dados e as vezes me mostra dados. O certo seria me desconectar e já me levar direto para a página de login, em vez de deixar a tela carregada sem nada ou com algo porém sem permissão. Segue a mesagem do terminal que ajuda você a entender o que digo:
 
-2025-10-02 20:57:16,928 WARNING  Unauthorized: /api/alunos/17/
-127.0.0.1:57275 - - [02/Oct/2025:20:57:16] "DELETE /api/alunos/17/" 401 172
-Unauthorized: /api/alunos/17/
-2025-10-02 20:57:21,846 WARNING  Unauthorized: /api/alunos/17/
-127.0.0.1:57275 - - [02/Oct/2025:20:57:21] "DELETE /api/alunos/17/" 401 172
-Unauthorized: /api/alunos/17/
-2025-10-02 20:57:25,778 WARNING  Unauthorized: /api/alunos/17/
-127.0.0.1:57275 - - [02/Oct/2025:20:57:25] "DELETE /api/alunos/17/" 401 172
-
- 
-Acho melhor que o sistema só peça login novamente quando eu fechar a página ou reiniciar o computador. Durante o uso normal, depois que eu já fiz o login, não é pra ficar desconectando sozinho.
 -----
 
 
