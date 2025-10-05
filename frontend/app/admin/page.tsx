@@ -23,7 +23,7 @@ export default function AdminLogin() {
   const [biometricStatus, setBiometricStatus] = useState("Aguardando leitura...")
   const [isReading, setIsReading] = useState(false)
   const router = useRouter()
-  const { login } = useAuth()
+  const { login, logout } = useAuth()
   const ws = useRef<WebSocket | null>(null)
 
   useEffect(() => {
@@ -46,11 +46,17 @@ export default function AdminLogin() {
     try {
       const response = await apiClient.post("/token/fingerprint/", { sensor_id: sensorId })
       const { access } = response.data
-      login(access); // Passa o token para o AuthContext
-      router.push("/administrators")
+      const loggedInUser = login(access);
+      if (loggedInUser && loggedInUser.is_superuser) {
+        router.push("/administrators")
+      } else {
+        setBiometricStatus("Acesso Negado. A digital não pertence a um superusuário.")
+        setTimeout(() => { setBiometricStatus("Aguardando leitura...") }, 4000)
+      }
+
     } catch (err) {
-      setBiometricStatus("Falha na autenticação. Digital não pertence a um superusuário.")
-      setTimeout(() => { setBiometricStatus("Aguardando leitura...") }, 3000)
+      setBiometricStatus("Falha na autenticação. Tente novamente.")
+      setTimeout(() => { setBiometricStatus("Aguardando leitura...") }, 4000)
     }
   }
   
@@ -61,8 +67,17 @@ export default function AdminLogin() {
     try {
       const response = await apiClient.post('/token/', { username, password });
       const { access } = response.data;
-      login(access); // Entrega o token para o context
-      router.push("/administrators");
+      
+      // --- MUDANÇA CRÍTICA: Verificando a permissão após o login ---
+      const loggedInUser = login(access);
+      if (loggedInUser && loggedInUser.is_superuser) {
+        router.push("/administrators");
+      } else {
+        // Se o login for bem-sucedido mas o usuário não for superuser, mostramos um erro
+        setError("Acesso Negado. Apenas superusuários podem entrar por esta página.");
+        logout(); // Desloga o usuário que acabou de logar
+      }
+
     } catch (err) {
       setError("Credenciais de admin inválidas. Verifique seu usuário e senha.");
     } finally {

@@ -17,7 +17,7 @@ interface User {
 interface AuthContextType {
     token: string | null;
     user: User | null; // <-- MUDANÇA: Tipagem corrigida de 'any' para 'User | null'
-    login: (newToken: string) => void; // <-- MUDANÇA: login agora aceita apenas o token
+    login: (newToken: string) => User | null;
     logout: () => void;
     isLoading: boolean;
 }
@@ -68,9 +68,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }, [updateUserFromToken]);
     
     // --- MUDANÇA AQUI ---
-    const login = (newToken: string) => {
+    const login = (newToken: string): User | null => {
         localStorage.setItem('authToken', newToken);
-        updateUserFromToken(newToken);
+        // A função updateUserFromToken já atualiza o estado interno.
+        // Aqui, nós decodificamos novamente apenas para retornar o valor imediatamente.
+        try {
+            const decodedToken: any = jwtDecode(newToken);
+            const loggedInUser = {
+                user_id: decodedToken.user_id,
+                username: decodedToken.username,
+                is_superuser: decodedToken.is_superuser || false
+            };
+            updateUserFromToken(newToken); // Continua atualizando o contexto
+            return loggedInUser;
+        } catch (e) {
+            updateUserFromToken(null);
+            return null;
+        }
     };
 
     const logout = () => {
