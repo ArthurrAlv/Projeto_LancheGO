@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils"
 import { Home, Users, LogOut, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge";
 
 const getNavigationItems = (pathname: string) => {
   // Admin pages should only show relevant admin links
@@ -25,6 +26,8 @@ export function Navigation() {
   // --- MUDANÇA: Importando o AuthContext e o Router ---
   const { user, logout } = useAuth();
   const router = useRouter();
+
+  console.log("Dados do Usuário na Navegação:", user);
 
   if (pathname === "/" || pathname === "/admin") return null;
 
@@ -77,6 +80,10 @@ export function Navigation() {
               })}
             </div>
           </div>
+          {/* --- NOVO: Destaque para Superuser --- */}
+          {user?.is_superuser && (
+            <Badge variant="destructive" className="bg-yellow-500 text-black hover:bg-yellow-500">Superuser</Badge>
+          )}
           {/* --- MUDANÇA: O botão "Sair" agora chama a função handleLogout --- */}
           <Button variant="outline" size="sm" onClick={handleLogout} className="hover:bg-red-500/80 hover:text-white">
             <LogOut className="h-4 w-4 mr-2" />

@@ -28,7 +28,7 @@ Os problemas notados são:
 
 - 
 
-1.  * Colocar feedback no login do admin como há no login normal. Além disso colocar um botão descreto pra ir à pagina de login do admin e no login do admin um botão descreto pra voltar a pagina de login comum.
+
 
 ---
 
@@ -37,7 +37,7 @@ Os problemas notados são:
   * Remover a forma atual de exibir o **Superuser**.
   * Torná-lo visível novamente, mas com alguma **marcação de “superuser”**.
   * **Superuser não pode ser excluído sem que hajá uma confirmação de um superuser**.
-  * implementar inserção de um novo superusuario(limite 3), mas com solicitação de senha do superuser. Ou isso não é necessario? Após implementado, tem como acessar o painel do django e fazer o processo? Criar um servidor e ir no django para marca-lo como superuser. Qual é a melhor forma?
+  * (http://127.0.0.1:8000/admin/) Tanto esse link quanto os outros (http://localhost:3000/dashboard) tem como mascarar esse nome pra outro? http://lanchego.bd/... e http://lanchego/dash...?  
 
 * **Fluxo de Adição de Servidor:**
 

@@ -7,13 +7,14 @@ from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import Aluno, Servidor, Digital
-from .serializers import AlunoSerializer, ServidorSerializer, ServidorRegisterSerializer
+from .serializers import AlunoSerializer, ServidorSerializer, ServidorRegisterSerializer, RegistroRetiradaSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from django.utils import timezone
 from .models import RegistroRetirada
-from .serializers import RegistroRetiradaSerializer
+from .serializers import MyTokenObtainPairSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
 
 
 # ---- Views para Alunos ----
@@ -44,6 +45,8 @@ class AlunoRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
         return super().destroy(request, *args, **kwargs)
 
 
+class MyTokenObtainPairView(TokenObtainPairView):
+    serializer_class = MyTokenObtainPairSerializer
 
 # ---- Views para Servidores ----
 class ServidorRegisterView(generics.CreateAPIView):
