@@ -17,6 +17,10 @@ Os problemas notados são:
 1.  **Regras de Permissão Incorretas:** O objetivo era implementar novas regras de segurança, QUE JÁ EXISTEM, como na exclusão em massa dos alunos, mas não nos pontos abaixo:
     * Apenas `superusers` podem cadastrar, apagar alunos ou editar(pedir digital de superuser como confirmação como na exlusão em massa). - O login dirá -
 
+
+----------
+
+
 * *Correções de Usabilidade*
 1.  * Corrigir sons, muito ruim sempre ter que clicar na tela para eles funcionarem. Procurar uma melhor opção.
 
@@ -27,9 +31,8 @@ Os problemas notados são:
 * **Página Administrators:**
 
   * Remover a forma atual de exibir o **Superuser**.
-  * Torná-lo visível novamente, mas com **marcação de “superuser”**.
-  * Qualquer alteração deve **exigir senha do superuser**.
-  * **Superuser não pode ser excluído**.
+  * Torná-lo visível novamente, mas com alguma **marcação de “superuser”**.
+  * **Superuser não pode ser excluído sem que hajá uma confirmação de um superuser**.
   * implementar inserção de um novo superusuario(limite 3), mas com solicitação de senha do superuser. Ou isso não é necessario? Após implementado, tem como acessar o painel do django e fazer o processo? Criar um servidor e ir no django para marca-lo como superuser. Qual é a melhor forma?
 
 * **Fluxo de Adição de Servidor:**
