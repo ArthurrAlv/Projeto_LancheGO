@@ -21,7 +21,20 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 class AlunoListCreate(generics.ListCreateAPIView):
     queryset = Aluno.objects.all()
     serializer_class = AlunoSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    
+    # --- CORREÇÃO PRINCIPAL AQUI ---
+    def get_permissions(self):
+        """
+        Define permissões diferentes para cada tipo de requisição:
+        - GET (listar alunos): Permite qualquer usuário autenticado.
+        - POST (criar aluno): Permite apenas superusuários.
+        """
+        if self.request.method == 'POST':
+            # Apenas superusuários podem criar alunos (ex: via API, sem ser pela planilha)
+            return [permissions.IsAdminUser()]
+        
+        # Qualquer usuário logado (servidor ou superuser) pode ver a lista de alunos
+        return [permissions.IsAuthenticated()]
 
 # 🔽 --- LÓGICA DE EXCLUSÃO ATUALIZADA AQUI --- 🔽
 class AlunoRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
@@ -54,7 +67,7 @@ class ServidorRegisterView(generics.CreateAPIView):
     permission_classes = [permissions.IsAdminUser]
 
 class ServidorList(generics.ListAPIView):
-    queryset = Servidor.objects.filter(user__is_superuser=False)
+    queryset = Servidor.objects.all()
     serializer_class = ServidorSerializer
     permission_classes = [permissions.IsAdminUser]
 

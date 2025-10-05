@@ -1,7 +1,7 @@
 // app/students/page.tsx (VERSÃO FINAL CORRIGIDA E ROBUSTA)
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { TURMA_NOMES } from "@/lib/utils"
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -103,100 +103,124 @@ export default function StudentsPage() {
   
 
 
-  const { token } = useAuth();
+const { token, isLoading: isLoadingAuth } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 
 
   const fetchStudents = async () => {
-    if (!token) return;
-    setIsLoading(true);
-    try {
-      const response = await apiClient.get("/alunos/");
-      setStudents(response.data);
-    } catch (error) {
-      console.error("Falha ao buscar alunos:", error);
-    } finally {
-      setIsLoading(false);
-    }
+      // A verificação do token agora está no useEffect, esta função se torna mais simples
+      setIsLoading(true);
+      try {
+        const response = await apiClient.get("/alunos/");
+        setStudents(response.data);
+      } catch (error) {
+        console.error("Falha ao buscar alunos:", error);
+      } finally {
+        setIsLoading(false);
+      }
   };
 
+  // --- Refs para evitar "stale state" no websocket, mantendo a conexão estável ---
+  const editingStudentRef = useRef(editingStudent);
+  const newlyCreatedStudentRef = useRef(newlyCreatedStudent);
   useEffect(() => {
-      if (!token) return;
+    editingStudentRef.current = editingStudent;
+    newlyCreatedStudentRef.current = newlyCreatedStudent;
+  }, [editingStudent, newlyCreatedStudent]);
 
-      let isMounted = true; // Flag para evitar atualizações após desmontar
+  useEffect(() => {
+    // 1. Lógica de Proteção
+    if (isLoadingAuth) { // Usando o isLoading do useAuth()
+      return; // Espera a autenticação terminar
+    }
+    if (!token) {
+      router.push('/');
+      return;
+    }
 
-      const connectWebSocket = () => {
-          if (ws.current && ws.current.readyState === WebSocket.OPEN) return;
-          if (!isMounted) return;
+    // 2. Com o token validado, busca os alunos
+    fetchStudents();
 
-          const wsUrl = "ws://127.0.0.1:8000/ws/hardware/dashboard_group/";
-          ws.current = new WebSocket(wsUrl);
+    let isMounted = true;
 
-          ws.current.onopen = () => {
-              console.log("StudentsPage: WebSocket Conectado!");
-          };
+    const connectWebSocket = () => {
+      if (ws.current && ws.current.readyState === WebSocket.OPEN) return;
+      if (!isMounted) return;
 
-          ws.current.onclose = () => {
-              if (!isMounted) return;
-              console.log("StudentsPage: WebSocket Desconectado. Tentando reconectar em 3s...");
-              setReaderStatus("disconnected");
-              setTimeout(connectWebSocket, 2000); // Tenta reconectar
-          };
+      const wsUrl = "ws://127.0.0.1:8000/ws/hardware/dashboard_group/";
+      ws.current = new WebSocket(wsUrl);
 
-          ws.current.onerror = (error) => {
-              console.error("StudentsPage: Erro no WebSocket:", error);
-              ws.current?.close(); // Força o onclose para disparar a reconexão
-          };
-
-          ws.current.onmessage = (event) => {
-              const data = JSON.parse(event.data);
-              const activeStudent = editingStudent || newlyCreatedStudent;
-
-              switch (data.type) {
-                  case "cadastro.feedback":
-                      setEnrollmentStatus({ message: data.message, state: "loading" });
-                      break;
-                  case "cadastro.success":
-                      if (activeStudent) {
-                          handleAssociateFingerprint(data.sensor_id, activeStudent.id);
-                      }
-                      break;
-                  case "cadastro.error":
-                      setEnrollmentStatus({ message: `Erro no leitor: ${data.message}`, state: "error" });
-                      setTimeout(() => {
-                          setIsEnrolling(false);
-                          setEnrollmentStatus({ message: "Aguardando início...", state: "idle" });
-                      }, 3000);
-                      break;
-                  case "status.leitor":
-                      const newStatus = data.status === "conectado" ? "connected" : "disconnected";
-                      setReaderStatus(newStatus);
-                      break;
-                  case "delete.result":
-                      if (data.status === "OK") {
-                          console.log(`Digital ${data.sensor_id} apagada com sucesso. Atualizando lista...`);
-                          fetchStudents();
-                      } else {
-                          console.error(`Falha ao apagar digital ${data.sensor_id} no hardware.`);
-                          alert(`Falha ao apagar uma das digitais no leitor. Tente novamente.`);
-                      }
-                      break;
-              }
-          };
+      ws.current.onopen = () => {
+        if (!isMounted) return;
+        console.log("StudentsPage: WebSocket Conectado!");
       };
 
-      connectWebSocket();
-      fetchStudents();
+      ws.current.onclose = () => {
+        if (!isMounted) return;
+        console.log("StudentsPage: WebSocket Desconectado. Tentando reconectar em 3s...");
+        setReaderStatus("disconnected");
+        setTimeout(connectWebSocket, 3000); // Tenta reconectar
+      };
 
-      return () => {
-          isMounted = false;
-          if (ws.current) {
-              ws.current.onclose = null; // Impede a reconexão após sair da página
-              ws.current.close();
-          }
+      ws.current.onerror = (error) => {
+        if (!isMounted) return;
+        console.error("StudentsPage: Erro no WebSocket:", error);
+        ws.current?.close(); // Força o onclose para disparar a reconexão
+      };
+
+      ws.current.onmessage = (event) => {
+        if (!isMounted) return;
+        const data = JSON.parse(event.data);
+        const activeStudent = editingStudentRef.current || newlyCreatedStudentRef.current;
+
+        switch (data.type) {
+            case "status.leitor":
+                setReaderStatus(data.status === "conectado" ? "connected" : "disconnected");
+                break;
+            case "cadastro.success":
+                if (activeStudent) {
+                    handleAssociateFingerprint(data.sensor_id, activeStudent.id);
+                }
+                break;
+            case "cadastro.error":
+                setEnrollmentStatus({ message: `Erro no leitor: ${data.message}`, state: "error" });
+                setTimeout(() => {
+                    setIsEnrolling(false);
+                    setEnrollmentStatus({ message: "Aguardando início...", state: "idle" });
+                }, 3000);
+                break;
+            case "delete.result":
+                if (data.status === "OK") {
+                    fetchStudents();
+                }
+                break;
+            case "action.feedback":
+                toast({
+                    title: data.status === "success" ? "Sucesso!" : (data.status === "error" ? "Erro!" : "Aviso"),
+                    description: data.message,
+                    variant: data.status === "error" ? "destructive" : "default",
+                });
+                if (data.status === "success" || data.message.includes("removidos")) {
+                    fetchStudents();
+                }
+                break;
+        }
+      };
+    };
+
+    connectWebSocket();
+
+    return () => {
+      isMounted = false;
+      if (ws.current) {
+        ws.current.onclose = null;
+        ws.current.close();
       }
-  }, [token, editingStudent, newlyCreatedStudent]); // Adicionado active students para garantir que o 'onmessage' tenha o estado mais recente
+    };
+  // A lista de dependências agora é limpa e correta
+  }, [token, isLoadingAuth, router]); 
+  
 
   const handleAddNewStudentAndProceed = async () => {
     try {

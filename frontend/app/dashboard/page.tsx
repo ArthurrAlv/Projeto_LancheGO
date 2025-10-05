@@ -70,9 +70,13 @@ export default function DashboardPage() {
   }, [])
 
   useEffect(() => {
+      // --- ESTA É A LÓGICA DE PROTEÇÃO ---
       if (isLoading || !token) {
-          if (!isLoading && !token) router.push('/');
-          return;
+          // Se não estiver carregando e mesmo assim não houver token, redireciona.
+          if (!isLoading && !token) {
+              router.push('/'); 
+          }
+          return; // Para a execução se ainda estiver carregando ou se não houver token.
       }
 
       let isMounted = true; // Flag para evitar atualizações de estado em componente desmontado
