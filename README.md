@@ -21,8 +21,14 @@ Os problemas notados são:
 ----------
 
 
+
+
 * *Correções de Usabilidade*
 1.  * Corrigir sons, muito ruim sempre ter que clicar na tela para eles funcionarem. Procurar uma melhor opção. Não tem, talvez colocar um botão de enfeite pra clicar.
+
+- 
+
+1.  * Colocar feedback no login do admin como há no login normal. Além disso colocar um botão descreto pra ir à pagina de login do admin e no login do admin um botão descreto pra voltar a pagina de login comum.
 
 ---
 
@@ -57,21 +63,12 @@ Acho melhor que o sistema só peça login novamente quando eu fechar a página o
 -----
 
 
-* Quero que na pagina students apareça o nome da turma completa, ex: "1º Ano Eletro".
-
-* Ajustar a página do **Superuser**:
-
-  * Atualmente há **duas opções de “Sair”**.
-  * Melhor solução: o **cabeçalho** deve mudar o botão “Sair” para **sair da página do Superuser**, sem confundir com o logout de servidor.
-
 
 ---
 
 ## 🎨 Correções de Layout
 
-* Melhorar **contraste** e **destaque das cores** na página de **Distribuição de Lanches**.
-* Status do leitor parou de funcionar novamente
-* Corrigir sons, muito ruim sempre ter que clicar na tela para eles funcionarem
+
 
 ---
 

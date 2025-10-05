@@ -361,7 +361,6 @@ export default function ServersManagementPage() {
               <Button onClick={() => { resetForm(); setIsModalOpen(true); }}>
                   <Plus className="mr-2 h-4 w-4" />Adicionar Novo Servidor
               </Button>
-              <Button variant="outline" onClick={handleLogout}><LogOut className="mr-2 h-4 w-4" />Sair</Button>
           </div>
         </header>
         

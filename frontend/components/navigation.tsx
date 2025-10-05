@@ -1,7 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
+import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils"
 import { Home, Users, LogOut, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -20,11 +21,32 @@ const getNavigationItems = (pathname: string) => {
 }
 
 export function Navigation() {
-  const pathname = usePathname()
+  const pathname = usePathname();
+  // --- MUDANÇA: Importando o AuthContext e o Router ---
+  const { user, logout } = useAuth();
+  const router = useRouter();
 
-  if (pathname === "/" || pathname === "/admin") return null
+  if (pathname === "/" || pathname === "/admin") return null;
 
-  const navigation = getNavigationItems(pathname)
+  // --- MUDANÇA: Lógica de navegação agora é baseada nas permissões do usuário ---
+  const navigation = [
+    { name: "Painel Principal", href: "/dashboard", icon: Home },
+    { name: "Gestão de Alunos", href: "/students", icon: Users },
+  ];
+
+  if (user?.is_superuser) {
+    navigation.push({ name: "Gestão de Servidores", href: "/administrators", icon: Settings });
+  }
+
+  const handleLogout = () => {
+    logout();
+    // Se estiver na página de admin, redireciona para o login de admin. Senão, para o login principal.
+    if (pathname.startsWith("/administrators")) {
+      router.push('/admin');
+    } else {
+      router.push('/');
+    }
+  };
 
   return (
     <nav className="bg-card border-b border-border">
@@ -34,10 +56,9 @@ export function Navigation() {
             <Link href="/dashboard" className="text-xl font-bold text-primary">
               LancheGO
             </Link>
-
             <div className="flex space-x-4">
               {navigation.map((item) => {
-                const Icon = item.icon
+                const Icon = item.icon;
                 return (
                   <Link
                     key={item.name}
@@ -46,25 +67,23 @@ export function Navigation() {
                       "flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors",
                       pathname === item.href
                         ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted",
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
                     )}
                   >
                     <Icon className="h-4 w-4" />
                     <span>{item.name}</span>
                   </Link>
-                )
+                );
               })}
             </div>
           </div>
-
-          <Button variant="outline" size="sm" asChild className="hover:bg-red-500/80">
-            <Link href="/">
-              <LogOut className="h-4 w-4 mr-2" />
-              Sair
-            </Link>
+          {/* --- MUDANÇA: O botão "Sair" agora chama a função handleLogout --- */}
+          <Button variant="outline" size="sm" onClick={handleLogout} className="hover:bg-red-500/80 hover:text-white">
+            <LogOut className="h-4 w-4 mr-2" />
+            Sair
           </Button>
         </div>
       </div>
     </nav>
-  )
+  );
 }
