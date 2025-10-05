@@ -2,7 +2,7 @@
 
 import openpyxl
 from rest_framework.parsers import MultiPartParser, FormParser
-from datetime import datetime
+from datetime import datetime, time
 from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -11,6 +11,9 @@ from .serializers import AlunoSerializer, ServidorSerializer, ServidorRegisterSe
 from rest_framework_simplejwt.tokens import RefreshToken
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+from django.utils import timezone
+from .models import RegistroRetirada
+from .serializers import RegistroRetiradaSerializer
 
 
 # ---- Views para Alunos ----
@@ -39,9 +42,7 @@ class AlunoRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
                     {'type': 'execute.command', 'command': command}
                 )
         return super().destroy(request, *args, **kwargs)
-        
-        # Agora, prossegue com a exclusão do aluno do banco de dados
-        return super().destroy(request, *args, **kwargs)
+
 
 
 # ---- Views para Servidores ----
@@ -289,3 +290,18 @@ class AlunoUploadPlanilhaView(APIView):
 
         except Exception as e:
             return Response({"error": f"Erro grave ao abrir ou processar a planilha: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+class RegistrosDeHojeView(generics.ListAPIView):
+    serializer_class = RegistroRetiradaSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        # Esta view agora usa o 'time' correto de 'datetime'
+        hoje = timezone.localtime(timezone.now()).date()
+        agora_time = timezone.localtime(timezone.now()).time()
+        if agora_time.hour < 12:
+            periodo_inicio = timezone.make_aware(datetime.combine(hoje, time.min))
+        else:
+            periodo_inicio = timezone.make_aware(datetime.combine(hoje, time(12, 0)))
+        return RegistroRetirada.objects.filter(data_retirada__gte=periodo_inicio).order_by('-data_retirada')[:5]

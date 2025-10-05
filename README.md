@@ -22,9 +22,7 @@ Os problemas notados são:
 
 
 * *Correções de Usabilidade*
-1.  * Corrigir sons, muito ruim sempre ter que clicar na tela para eles funcionarem. Procurar uma melhor opção.
-
-2.  * Últimas Retiradas somem ao recarregar a página. Preciso que elas funcionem como a retirada: que elas sumam apenas depois das 12 da tarde e resetem novamente as 00.
+1.  * Corrigir sons, muito ruim sempre ter que clicar na tela para eles funcionarem. Procurar uma melhor opção. Não tem, talvez colocar um botão de enfeite pra clicar.
 
 ---
 

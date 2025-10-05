@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/context/AuthContext"
 import { TURMA_NOMES } from "@/lib/utils"
 import ClockNow from '@/components/Clock'
+import apiClient from "@/lib/api";
 
 
 // --- ESTADO DE ERRO REMOVIDO ---
@@ -76,6 +77,22 @@ export default function DashboardPage() {
 
       let isMounted = true; // Flag para evitar atualizações de estado em componente desmontado
 
+      const fetchInitialWithdrawals = async () => {
+          try {
+              const response = await apiClient.get('/registros/hoje/');
+              if (!isMounted) return;
+
+              const initialData = response.data.map((reg: any) => ({
+                  name: reg.nome_aluno,
+                  turma: reg.turma_aluno,
+                  time: new Date(reg.data_retirada).toLocaleTimeString('pt-BR'),
+              }));
+              setRecentWithdrawals(initialData);
+          } catch (error) {
+              console.error("Falha ao buscar retiradas iniciais:", error);
+          }
+      };
+
       const connectWebSocket = () => {
           if (ws.current && ws.current.readyState === WebSocket.OPEN) return;
           if (!isMounted) return;
@@ -88,6 +105,7 @@ export default function DashboardPage() {
               if (!isMounted) return;
               console.log("Dashboard: WebSocket Conectado!");
               // Não definimos como conectado aqui, esperamos a mensagem do backend
+              fetchInitialWithdrawals();
           };
 
           ws.current.onclose = () => {

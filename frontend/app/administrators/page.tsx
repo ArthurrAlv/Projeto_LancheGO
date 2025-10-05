@@ -21,7 +21,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Pencil, Trash2, Fingerprint, Loader2, Eye, EyeOff, LogOut, ShieldAlert, CheckCircle, XCircle, Usb, PlugZap, Search } from "lucide-react"
+import { Plus, Pencil, Trash2, Fingerprint, Loader2, Eye, EyeOff, LogOut, ShieldAlert, CheckCircle, XCircle, Usb, PlugZap, Search, AlertTriangle, } from "lucide-react"
 import apiClient from "@/lib/api"
 import { useAuth } from "@/context/AuthContext"
 import { useToast } from "@/components/ui/use-toast";
@@ -399,8 +399,16 @@ export default function ServersManagementPage() {
                       <TableCell>{server.user.username}</TableCell>
                       <TableCell>
                          <div className="flex items-center">
-                          {server.digitais_count === 0 && <Badge variant="secondary">Inativo</Badge>}
-                          {server.digitais_count === 1 && <Badge className="bg-yellow-500 hover:bg-yellow-600">Parcial</Badge>}
+                          {server.digitais_count === 0 && <Badge variant="destructive">Inativo</Badge>}
+                          {server.digitais_count === 1 && (
+                            <>
+                              <Badge className="bg-yellow-500 hover:bg-yellow-600">Parcial</Badge>
+                              <AlertTriangle
+                                className="ml-2 h-4 w-4 text-yellow-500"
+                                aria-label="Apenas uma digital cadastrada"
+                              />
+                            </>
+                          )}
                           {server.digitais_count >= 2 && <Badge className="bg-green-500 hover:bg-green-600">Ativo</Badge>}
                         </div>
                       </TableCell>

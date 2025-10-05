@@ -3,7 +3,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.db import transaction
-from .models import Aluno, Servidor, Digital
+from .models import Aluno, Servidor, Digital, RegistroRetirada
 
 # --- SERIALIZERS EXISTENTES (SEM MUDANÇAS) ---
 
@@ -78,3 +78,13 @@ class ServidorRegisterSerializer(serializers.ModelSerializer):
             nome_completo=validated_data['nome_completo']
         )
         return servidor
+    
+
+class RegistroRetiradaSerializer(serializers.ModelSerializer):
+    # Para incluir o nome e a turma do aluno no resultado
+    nome_aluno = serializers.CharField(source='aluno.nome_completo', read_only=True)
+    turma_aluno = serializers.CharField(source='aluno.turma', read_only=True)
+
+    class Meta:
+        model = RegistroRetirada
+        fields = ['id', 'nome_aluno', 'turma_aluno', 'data_retirada']
