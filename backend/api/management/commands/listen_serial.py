@@ -136,6 +136,7 @@ class Command(BaseCommand):
         elif action_type == 'clear_all_fingerprints': await self._execute_clear_all()
         elif action_type == 'delete_student_fingerprints': await self._execute_delete_user_fingerprints(action, 'aluno')
         elif action_type == 'delete_server_fingerprints': await self._execute_delete_user_fingerprints(action, 'servidor')
+        elif action_type == 'delete_student': await self._execute_delete_student(action)
 
         
         await self.cancel_pending_action(send_message=False) # Limpa a ação após execução
@@ -166,6 +167,33 @@ class Command(BaseCommand):
         message = f"{len(students_to_delete)} aluno(s) da turma '{turma}' e suas digitais foram removidos com sucesso."
         await self.channel_layer.group_send('dashboard_group', {'type': 'broadcast_message', 'message': {'type': 'action.feedback', 'status': 'success', 'message': message}})
 
+    async def _execute_delete_student(self, action):
+        aluno_id = action.get('aluno_id')
+
+        user, digitais_to_delete = await self._get_user_and_digitais(aluno_id, 'aluno')
+
+        if not user:
+            message = "Aluno não encontrado para exclusão."
+            self.stdout.write(self.style.WARNING(message))
+            await self.channel_layer.group_send('dashboard_group', {'type': 'broadcast_message', 'message': {'type': 'action.feedback', 'status': 'error', 'message': message}})
+            return
+
+        self.stdout.write(self.style.SUCCESS(f"EXECUTANDO exclusão completa do aluno: {user.nome_completo}"))
+
+        # 1. Envia comandos para apagar as digitais do hardware
+        if digitais_to_delete:
+            for digital in digitais_to_delete:
+                command = f"DELETAR:{digital.sensor_id}\n"
+                self.ser.write(command.encode('utf-8'))
+                self.stdout.write(f"-> Comando enviado: DELETAR:{digital.sensor_id}")
+                await asyncio.sleep(0.1)
+
+        # 2. Apaga o aluno do banco de dados (o cascade do Django cuidará de apagar as refs das digitais)
+        await sync_to_async(user.delete)()
+
+        message = f"Aluno '{user.nome_completo}' e suas digitais foram removidos com sucesso."
+        await self.channel_layer.group_send('dashboard_group', {'type': 'broadcast_message', 'message': {'type': 'action.feedback', 'status': 'success', 'message': message}})
+
     async def _execute_clear_all(self):
         self.stdout.write(self.style.SUCCESS("EXECUTANDO limpeza total do leitor..."))
         command = "LIMPAR\n"
@@ -173,6 +201,7 @@ class Command(BaseCommand):
         # A confirmação e exclusão do banco virão do `process_serial_data` ao receber `LIMPAR_OK`
         # Mas enviamos um feedback imediato de sucesso para o frontend
         await self.channel_layer.group_send('dashboard_group', {'type': 'broadcast_message', 'message': {'type': 'action.feedback', 'status': 'success', 'message': 'Comando para limpar leitor enviado. O sistema será atualizado após a confirmação do hardware.'}})
+
 
     # --- NOVO: Método genérico para apagar digitais de um usuário específico ---
     @sync_to_async

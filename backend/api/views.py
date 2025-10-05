@@ -305,3 +305,23 @@ class RegistrosDeHojeView(generics.ListAPIView):
         else:
             periodo_inicio = timezone.make_aware(datetime.combine(hoje, time(12, 0)))
         return RegistroRetirada.objects.filter(data_retirada__gte=periodo_inicio).order_by('-data_retirada')[:5]
+    
+
+class InitiateDeleteStudentView(APIView):
+    """ Inicia a exclusão segura de um aluno completo (registro e digitais). """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        aluno_id = kwargs.get('aluno_id')
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            'serial_worker_group',
+            {
+                'type': 'arm.action',
+                'action': {
+                    'type': 'delete_student', # Novo tipo de ação
+                    'aluno_id': aluno_id
+                }
+            }
+        )
+        return Response({"message": "Ação de exclusão de aluno iniciada. Aguardando confirmação biométrica."}, status=status.HTTP_202_ACCEPTED)

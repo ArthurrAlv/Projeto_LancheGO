@@ -10,7 +10,7 @@ from .views import (
     AssociateFingerprintView, FingerprintLoginView,
     InitiateDeleteByTurmaView, InitiateClearAllView,
     InitiateDeleteStudentFingerprintsView, InitiateDeleteServerFingerprintsView, # Novas views
-    RegistrosDeHojeView
+    RegistrosDeHojeView, InitiateDeleteStudentView
 )
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
@@ -42,6 +42,8 @@ urlpatterns = [
     # --- NOVO: Rotas para iniciar a exclusão de digitais de um único usuário ---
     path('actions/initiate-delete-student-fingerprints/<int:aluno_id>/', views.InitiateDeleteStudentFingerprintsView.as_view(), name='initiate-delete-student-fingerprints'),
     path('actions/initiate-delete-server-fingerprints/<int:servidor_id>/', views.InitiateDeleteServerFingerprintsView.as_view(), name='initiate-delete-server-fingerprints'),
+    # --- Rota: confirmação de exclusão de aluno
+    path('actions/initiate-delete-student/<int:aluno_id>/', views.InitiateDeleteStudentView.as_view(), name='initiate-delete-student'),
 
 
     path('registros/hoje/', views.RegistrosDeHojeView.as_view(), name='registros-hoje'),

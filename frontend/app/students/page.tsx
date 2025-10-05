@@ -225,12 +225,24 @@ export default function StudentsPage() {
   };
 
   const handleDeleteStudent = async (studentId: number) => {
-    try {
-      await apiClient.delete(`/alunos/${studentId}/`);
-      fetchStudents();
-    } catch (error) {
-      console.error("Falha ao deletar aluno:", error);
-    }
+      try {
+          // Agora chama a rota de INICIAÇÃO, em vez de deletar diretamente
+          const response = await apiClient.post(`/actions/initiate-delete-student/${studentId}/`);
+          toast({
+              title: "Ação Iniciada",
+              description: response.data.message,
+          });
+          // Não chamamos fetchStudents() aqui, pois a exclusão ainda não ocorreu.
+          // O WebSocket enviará a mensagem de sucesso que atualizará a lista.
+      } catch (error: any) {
+          toast({
+              title: "Erro de Permissão",
+              description: error.response?.status === 403
+                  ? "Apenas superusuários podem apagar alunos."
+                  : "Não foi possível iniciar a ação de exclusão.",
+              variant: "destructive"
+          });
+      }
   };
 
   const handleInitiateDeleteFingerprints = async (studentId: number) => {
