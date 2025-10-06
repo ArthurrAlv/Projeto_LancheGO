@@ -34,9 +34,6 @@ Os problemas notados são:
 
 * **Página Administrators:**
 
-  * Remover a forma atual de exibir o **Superuser**.
-  * Torná-lo visível novamente, mas com alguma **marcação de “superuser”**.
-  * **Superuser não pode ser excluído sem que hajá uma confirmação de um superuser**.
   * (http://127.0.0.1:8000/admin/) Tanto esse link quanto os outros (http://localhost:3000/dashboard) tem como mascarar esse nome pra outro? http://lanchego.bd/... e http://lanchego/dash...?  
 
 * **Fluxo de Adição de Servidor:**
@@ -50,7 +47,9 @@ Os problemas notados são:
 
 -----
 
+## **Correções de Futuras**
 
+*Implementar pequenos times de carregamento certas ações para melhorar o tempo de resposta da pagina com o dispositivo.
 
 ---
 

@@ -27,7 +27,7 @@ class AlunoSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username'] # Removido first_name para consistência, nome_completo vem do Servidor
+        fields = ['id', 'username', 'is_superuser'] # Removido first_name para consistência, nome_completo vem do Servidor
 
 # Serializer para listar/detalhar Servidores
 class ServidorSerializer(serializers.ModelSerializer):

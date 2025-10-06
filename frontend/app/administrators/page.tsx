@@ -48,7 +48,7 @@ interface Server {
   user: {
     id: number;
     username: string;
-    is_superuser: boolean;
+    is_superuser: boolean; 
   };
   digitais_count: number;
 }
@@ -541,16 +541,17 @@ export default function ServersManagementPage() {
                       <TableCell className="flex items-center">
                         {server.nome_completo}
                         {/* --- MUDANÇA 1: Adicionando a Badge de Superuser --- */}
-                        {loggedInUser && loggedInUser.user_id === server.user.id && loggedInUser.is_superuser && (
+                      </TableCell>
+                      <TableCell>{server.user.username}
+                        {server.user.is_superuser && (
                             <Badge
                                 variant="destructive"
-                                className="ml-2 bg-yellow-500 text-black hover:bg-yellow-500"
+                                className="ml-2 bg-yellow-200 text-black hover:bg-yellow-200"
                             >
                                 Superuser
                             </Badge>
                         )}
                       </TableCell>
-                      <TableCell>{server.user.username}</TableCell>
                       <TableCell>
                         <div className="flex items-center">
                           {server.digitais_count === 0 && (
