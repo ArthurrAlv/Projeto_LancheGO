@@ -51,6 +51,10 @@ Os problemas notados são:
 
 *Implementar pequenos times de carregamento certas ações para melhorar o tempo de resposta da pagina com o dispositivo.
 
+****https://g.co/gemini/share/6b29d1ed8178****
+
+***https://www.docker.com/***
+
 ---
 
 ## 🎨 Correções de Layout
