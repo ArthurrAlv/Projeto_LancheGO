@@ -1,7 +1,7 @@
 // app/administrators/page.tsx (VERSÃO FINAL ATUALIZADA E ALINHADA)
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,21 +35,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Plus,
-  Pencil,
-  Trash2,
-  Fingerprint,
-  Loader2,
-  Eye,
-  EyeOff,
-  LogOut,
-  ShieldAlert,
-  CheckCircle,
-  XCircle,
-  Usb,
-  PlugZap,
-  Search,
-  AlertTriangle,
+  Plus, Pencil, Trash2, Fingerprint, Loader2, Eye, EyeOff, LogOut,
+  ShieldAlert, CheckCircle, XCircle, Usb, PlugZap, Search, AlertTriangle,
 } from "lucide-react";
 import apiClient from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
@@ -78,33 +65,23 @@ export default function ServersManagementPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingServer, setEditingServer] = useState<Server | null>(null);
   const [activeToastId, setActiveToastId] = useState<string | null>(null);
-
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [nomeCompleto, setNomeCompleto] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [passwordConfirm, setPasswordConfirm] = useState(""); // Novo estado para confirmação
-
-  // --- MUDANÇA 2: ESTADOS DE CADASTRO ALINHADOS ---
-  const [enrollmentStatus, setEnrollmentStatus] =
-    useState<EnrollmentStatusType>({
-      message: "Aguardando início...",
-      state: "idle",
-    });
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [enrollmentStatus, setEnrollmentStatus] = useState<EnrollmentStatusType>({ message: "Aguardando início...", state: "idle" });
   const [isEnrolling, setIsEnrolling] = useState(false);
-  const [readerStatus, setReaderStatus] = useState<
-    "connected" | "disconnected"
-  >("disconnected");
-  const ws = useRef<WebSocket | null>(null);
-
-  // Busca
+  const [readerStatus, setReaderStatus] = useState<"connected" | "disconnected">("disconnected");
   const [searchTerm, setSearchTerm] = useState("");
-
-const { token, logout, user: loggedInUser } = useAuth();
+  
+  const ws = useRef<WebSocket | null>(null);
+  const { token, logout, user: loggedInUser, isLoading: isLoadingAuth } = useAuth();
   const router = useRouter();
   const { toast, dismiss } = useToast();
 
-  const fetchServers = async () => {
+  // --- CORREÇÃO 1: Envelopando fetchServers com useCallback ---
+  const fetchServers = useCallback(async () => {
     if (!token) return;
     setIsLoading(true);
     try {
@@ -112,17 +89,30 @@ const { token, logout, user: loggedInUser } = useAuth();
       setServers(response.data);
     } catch (error) {
       console.error("Falha ao buscar servidores:", error);
-      // alert("Acesso negado ou sessão expirada.");
-      // logout();
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [token]);
+
+
+  // --- CORREÇÃO 2: Ref para evitar que o useEffect dependa de 'editingServer' ---
+  const editingServerRef = useRef(editingServer);
+  useEffect(() => {
+    editingServerRef.current = editingServer;
+  }, [editingServer]);
 
   useEffect(() => {
-    if (!token) return;
+    if (isLoadingAuth || !token) {
+        if (!isLoadingAuth && !token) { router.push('/admin'); }
+        return;
+    }
+    // Proteção extra para garantir que apenas superusuários acessem esta página
+    if (loggedInUser && !loggedInUser.is_superuser) {
+        router.push('/dashboard');
+        return;
+    }
 
-    let isMounted = true; // Flag para evitar atualizações
+    let isMounted = true;
 
     const connectWebSocket = () => {
       if (ws.current && ws.current.readyState === WebSocket.OPEN) return;
@@ -131,34 +121,22 @@ const { token, logout, user: loggedInUser } = useAuth();
       const wsUrl = "ws://127.0.0.1:8000/ws/hardware/dashboard_group/";
       ws.current = new WebSocket(wsUrl);
 
-      ws.current.onopen = () => {
-        console.log("AdminPage: WebSocket Conectado!");
-      };
-
+      ws.current.onopen = () => { console.log("AdminPage: WebSocket Conectado!"); };
       ws.current.onclose = () => {
         if (!isMounted) return;
-        console.log(
-          "AdminPage: WebSocket Desconectado. Tentando reconectar em 3s..."
-        );
         setReaderStatus("disconnected");
-        setTimeout(connectWebSocket, 2000);
+        setTimeout(connectWebSocket, 3000);
       };
-
       ws.current.onerror = (error) => {
         console.error("AdminPage: Erro no WebSocket:", error);
         ws.current?.close();
       };
 
       ws.current.onmessage = (event) => {
+        if (!isMounted) return;
         const data = JSON.parse(event.data);
-        if (
-          !editingServer &&
-          (data.type === "cadastro.feedback" ||
-            data.type === "cadastro.success" ||
-            data.type === "cadastro.error")
-        )
-          return;
-
+        const activeServer = editingServerRef.current;
+        
         if (activeToastId && (data.type === 'action.feedback' || data.type === 'delete.result' || data.type === 'clearall.result')) {
             dismiss(activeToastId);
             setActiveToastId(null);
@@ -248,7 +226,7 @@ const { token, logout, user: loggedInUser } = useAuth();
         ws.current.close();
       }
     };
-  }, [token, editingServer]);
+  }, [token, isLoadingAuth, router, fetchServers, loggedInUser]);
 
   // --- MUDANÇA 4: FUNÇÃO DE SALVAR COM VALIDAÇÃO E MELHOR TRATAMENTO DE ERRO ---
   const handleSaveServer = async () => {
@@ -289,13 +267,20 @@ const { token, logout, user: loggedInUser } = useAuth();
     }
   };
 
-  const handleDeleteServer = async (serverId: number) => {
-    try {
-      await apiClient.delete(`/servidores/${serverId}/`);
-      fetchServers();
-    } catch (error) {
-      console.error("Falha ao deletar servidor:", error);
-    }
+  const handleInitiateDeleteServer = async (serverId: number) => {
+      try {
+          const response = await apiClient.post(`/actions/initiate-delete-server/${serverId}/`);
+          toast({
+              title: "Ação Iniciada",
+              description: response.data.message,
+          });
+      } catch (error: any) {
+          toast({
+              title: "Erro",
+              description: "Não foi possível iniciar a ação de exclusão.",
+              variant: "destructive"
+          });
+      }
   };
 
   // --- Busca
@@ -622,10 +607,10 @@ const { token, logout, user: loggedInUser } = useAuth();
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
                               <AlertDialogAction
-                                onClick={() => handleDeleteServer(server.id)}
-                                className="bg-destructive hover:bg-destructive/90"
+                                  onClick={() => handleInitiateDeleteServer(server.id)} // <-- MUDANÇA AQUI
+                                  className="bg-destructive hover:bg-destructive/90"
                               >
-                                Excluir
+                                  Excluir
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>

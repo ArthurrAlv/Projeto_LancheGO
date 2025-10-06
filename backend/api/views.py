@@ -348,3 +348,23 @@ class InitiateDeleteStudentView(APIView):
             }
         )
         return Response({"message": "Ação de exclusão de aluno iniciada. Aguardando confirmação biométrica."}, status=status.HTTP_202_ACCEPTED)
+    
+
+class InitiateDeleteServerView(APIView):
+    """ Inicia a exclusão segura de um servidor completo (registro e digitais). """
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request, *args, **kwargs):
+        servidor_id = kwargs.get('servidor_id')
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            'serial_worker_group',
+            {
+                'type': 'arm.action',
+                'action': {
+                    'type': 'delete_server', # Novo tipo de ação
+                    'servidor_id': servidor_id
+                }
+            }
+        )
+        return Response({"message": "Ação de exclusão de servidor iniciada. Aguardando confirmação biométrica."}, status=status.HTTP_202_ACCEPTED)

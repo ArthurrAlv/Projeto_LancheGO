@@ -137,6 +137,7 @@ class Command(BaseCommand):
         elif action_type == 'delete_student_fingerprints': await self._execute_delete_user_fingerprints(action, 'aluno')
         elif action_type == 'delete_server_fingerprints': await self._execute_delete_user_fingerprints(action, 'servidor')
         elif action_type == 'delete_student': await self._execute_delete_student(action)
+        elif action_type == 'delete_server': await self._execute_delete_server(action)
 
         
         await self.cancel_pending_action(send_message=False) # Limpa a ação após execução
@@ -166,6 +167,41 @@ class Command(BaseCommand):
         
         message = f"{len(students_to_delete)} aluno(s) da turma '{turma}' e suas digitais foram removidos com sucesso."
         await self.channel_layer.group_send('dashboard_group', {'type': 'broadcast_message', 'message': {'type': 'action.feedback', 'status': 'success', 'message': message}})
+
+    async def _execute_delete_server(self, action):
+        servidor_id = action.get('servidor_id')
+
+        user, digitais_to_delete = await self._get_user_and_digitais(servidor_id, 'servidor')
+
+        if not user:
+            message = "Servidor não encontrado para exclusão."
+            self.stdout.write(self.style.WARNING(message))
+            await self.channel_layer.group_send('dashboard_group', {'type': 'broadcast_message', 'message': {'type': 'action.feedback', 'status': 'error', 'message': message}})
+            return
+
+        # --- PROTEÇÃO ADICIONAL ---
+        # Impede que um superusuário apague a si mesmo ou outro superusuário se não for a intenção
+        if user.user.is_superuser:
+            self.stdout.write(self.style.ERROR(f"Tentativa de exclusão do superusuário '{user.nome_completo}' bloqueada pela lógica de execução."))
+            message = f"Exclusão de Superusuário '{user.nome_completo}' não é permitida por este método."
+            await self.channel_layer.group_send('dashboard_group', {'type': 'broadcast_message', 'message': {'type': 'action.feedback', 'status': 'error', 'message': message}})
+            return
+
+        self.stdout.write(self.style.SUCCESS(f"EXECUTANDO exclusão completa do servidor: {user.nome_completo}"))
+
+        if digitais_to_delete:
+            for digital in digitais_to_delete:
+                command = f"DELETAR:{digital.sensor_id}\n"
+                self.ser.write(command.encode('utf-8'))
+                self.stdout.write(f"-> Comando enviado: DELETAR:{digital.sensor_id}")
+                await asyncio.sleep(0.1)
+
+        # Apaga o usuário do banco (o cascade do Django cuidará de apagar o servidor e as refs das digitais)
+        await sync_to_async(user.user.delete)()
+
+        message = f"Servidor '{user.nome_completo}' e suas digitais foram removidos com sucesso."
+        await self.channel_layer.group_send('dashboard_group', {'type': 'broadcast_message', 'message': {'type': 'action.feedback', 'status': 'success', 'message': message}})
+
 
     async def _execute_delete_student(self, action):
         aluno_id = action.get('aluno_id')
