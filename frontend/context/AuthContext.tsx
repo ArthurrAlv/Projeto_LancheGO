@@ -1,16 +1,23 @@
 // context/AuthContext.tsx (Versão Final Corrigida com Tipagem)
 "use client";
 
-import { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import { createContext, useState, useContext, useEffect, ReactNode, useCallback  } from 'react';
 import apiClient from '@/lib/api';
 import { useRouter } from 'next/navigation';
+import { jwtDecode } from 'jwt-decode';
+
+// Interface para os dados do usuário que extraímos do token
+interface User {
+  user_id: number;
+  username: string;
+  is_superuser: boolean;
+}
 
 // Definimos a "forma" do nosso contexto para o TypeScript
 interface AuthContextType {
     token: string | null;
-    user: any;
-    // --- MUDANÇA AQUI ---
-    login: (username: string, password: string) => Promise<void>; 
+    user: User | null; // <-- MUDANÇA: Tipagem corrigida de 'any' para 'User | null'
+    login: (newToken: string) => User | null;
     logout: () => void;
     isLoading: boolean;
 }
@@ -19,32 +26,72 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-    const [user, setUser] = useState(null);
+    const [user, setUser] = useState<User | null>(null);
     const [token, setToken] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
 
-    useEffect(() => {
-        const storedToken = localStorage.getItem('authToken');
-        if (storedToken) {
-            setToken(storedToken);
+    const updateUserFromToken = useCallback((currentToken: string | null) => {
+        if (currentToken) {
+            // Define o token no estado e nos headers do apiClient
+            setToken(currentToken);
+            apiClient.defaults.headers['Authorization'] = `Bearer ${currentToken}`;
+            
+            // Decodifica o token para extrair as informações do usuário
+            try {
+                const decodedToken: any = jwtDecode(currentToken);
+                setUser({
+                    user_id: decodedToken.user_id,
+                    username: decodedToken.username,
+                    is_superuser: decodedToken.is_superuser || false
+                });
+            } catch (error) {
+                console.error("Token inválido:", error);
+                // Se o token for inválido, limpa tudo
+                localStorage.removeItem('authToken');
+                setToken(null);
+                setUser(null);
+            }
+        } else {
+            // Limpa o estado se não houver token
+            // Garante que o token seja removido do armazenamento permanente
+            localStorage.removeItem('authToken');
+            setToken(null);
+            setUser(null);
+            delete apiClient.defaults.headers['Authorization'];
         }
+        // --- MUDANÇA CRÍTICA: Avisa a aplicação que o carregamento inicial terminou ---
         setIsLoading(false);
     }, []);
+
+    useEffect(() => {
+        const storedToken = localStorage.getItem('authToken');
+        updateUserFromToken(storedToken);
+    }, [updateUserFromToken]);
     
     // --- MUDANÇA AQUI ---
-    const login = async (username: string, password: string) => {
-        const response = await apiClient.post('/token/', { username, password });
-        const { access } = response.data;
-        localStorage.setItem('authToken', access);
-        setToken(access);
+    const login = (newToken: string): User | null => {
+        localStorage.setItem('authToken', newToken);
+        // A função updateUserFromToken já atualiza o estado interno.
+        // Aqui, nós decodificamos novamente apenas para retornar o valor imediatamente.
+        try {
+            const decodedToken: any = jwtDecode(newToken);
+            const loggedInUser = {
+                user_id: decodedToken.user_id,
+                username: decodedToken.username,
+                is_superuser: decodedToken.is_superuser || false
+            };
+            updateUserFromToken(newToken); // Continua atualizando o contexto
+            return loggedInUser;
+        } catch (e) {
+            updateUserFromToken(null);
+            return null;
+        }
     };
 
     const logout = () => {
-        localStorage.removeItem('authToken');
-        setToken(null);
-        setUser(null);
-        router.push('/'); // Redireciona para o login ao deslogar
+        updateUserFromToken(null);
+        router.push('/');
     };
 
     return (

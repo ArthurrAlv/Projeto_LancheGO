@@ -2,6 +2,7 @@
 
 "use client"
 
+import '../globals.css'
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Clock, CheckCircle, Usb, AlertTriangle, PlugZap } from "lucide-react" // XCircle foi removido
@@ -9,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/context/AuthContext"
 import { TURMA_NOMES } from "@/lib/utils"
 import ClockNow from '@/components/Clock'
+import apiClient from "@/lib/api";
 
 
 // --- ESTADO DE ERRO REMOVIDO ---
@@ -68,12 +70,32 @@ export default function DashboardPage() {
   }, [])
 
   useEffect(() => {
+      // --- ESTA É A LÓGICA DE PROTEÇÃO ---
       if (isLoading || !token) {
-          if (!isLoading && !token) router.push('/');
-          return;
+          // Se não estiver carregando e mesmo assim não houver token, redireciona.
+          if (!isLoading && !token) {
+              router.push('/'); 
+          }
+          return; // Para a execução se ainda estiver carregando ou se não houver token.
       }
 
       let isMounted = true; // Flag para evitar atualizações de estado em componente desmontado
+
+      const fetchInitialWithdrawals = async () => {
+          try {
+              const response = await apiClient.get('/registros/hoje/');
+              if (!isMounted) return;
+
+              const initialData = response.data.map((reg: any) => ({
+                  name: reg.nome_aluno,
+                  turma: reg.turma_aluno,
+                  time: new Date(reg.data_retirada).toLocaleTimeString('pt-BR'),
+              }));
+              setRecentWithdrawals(initialData);
+          } catch (error) {
+              console.error("Falha ao buscar retiradas iniciais:", error);
+          }
+      };
 
       const connectWebSocket = () => {
           if (ws.current && ws.current.readyState === WebSocket.OPEN) return;
@@ -87,6 +109,7 @@ export default function DashboardPage() {
               if (!isMounted) return;
               console.log("Dashboard: WebSocket Conectado!");
               // Não definimos como conectado aqui, esperamos a mensagem do backend
+              fetchInitialWithdrawals();
           };
 
           ws.current.onclose = () => {
@@ -148,32 +171,42 @@ export default function DashboardPage() {
   }, [token, isLoading, router]);
 
   const getStateIcon = () => {
-     switch (biometricState) {
+    switch (biometricState) {
       case "success":
         return (
-          <div className="flex flex-col items-center">
-            <CheckCircle className="h-16 w-16 text-green-500" />
-            <p className="mt-4 text-xl font-semibold text-green-600">LANCHE LIBERADO</p>
-            <p className="text-2xl font-bold mt-2">{currentStudent?.nome_completo}</p>
-            <p className="text-lg text-gray-500">{TURMA_NOMES[currentStudent?.turma || ""] || currentStudent?.turma}</p>
+          <div className="flex h-full w-full flex-col items-center justify-center rounded-2xl border-4 border-[var(--status-complete)] bg-green-50/25 p-6">
+            {/* Ícone maior */}
+            <CheckCircle className="h-24 w-24 text-[var(--status-complete)]" />
+            {/* Título maior e com mais margem */}
+            <p className="mt-6 text-3xl font-semibold text-[var(--status-complete)]">LANCHE LIBERADO</p>
+            {/* Nome maior e com mais margem */}
+            <p className="mt-3 text-4xl font-bold">{currentStudent?.nome_completo}</p>
+            {/* Turma maior */}
+            <p className="mt-1 text-xl text-gray-500">{TURMA_NOMES[currentStudent?.turma || ""] || currentStudent?.turma}</p>
           </div>
         )
+
       case "warning":
         return (
-          <div className="flex flex-col items-center">
-            <AlertTriangle className="h-16 w-16 text-yellow-500" />
-            <p className="mt-4 text-xl font-semibold text-yellow-600">ALUNO JÁ RETIROU O LANCHE HOJE</p>
-            <p className="text-2xl font-bold mt-2">{currentStudent?.nome_completo}</p>
-            <p className="text-lg text-gray-500">{TURMA_NOMES[currentStudent?.turma || ""] || currentStudent?.turma}</p>
+          <div className="flex h-full w-full flex-col items-center justify-center rounded-2xl border-4 border-[var(--status-partial)] bg-amber-50/25 p-6">
+            {/* Ícone maior */}
+            <AlertTriangle className="h-24 w-24 text-[var(--status-partial)]" />
+            {/* Título maior e com mais margem */}
+            <p className="mt-6 text-3xl font-semibold text-[var(--status-partial)]">ALUNO JÁ RETIROU O LANCHE HOJE</p>
+            {/* Nome maior e com mais margem */}
+            <p className="mt-3 text-4xl font-bold">{currentStudent?.nome_completo}</p>
+            {/* Turma maior */}
+            <p className="mt-1 text-xl text-gray-500">{TURMA_NOMES[currentStudent?.turma || ""] || currentStudent?.turma}</p>
           </div>
         )
-      // --- CASE DE ERROR/NOT_FOUND REMOVIDO ---
+      
       case "waiting":
       default:
         return (
-          <div className="flex flex-col items-center">
-            <Clock className="h-16 w-16 text-blue-500" />
-            <p className="mt-4 text-xl font-semibold">Aguardando leitura biométrica...</p>
+          // Também aumentei o conteúdo aqui para manter a consistência
+          <div className="flex flex-col items-center justify-center w-full h-full">
+            <Clock className="h-24 w-24 text-blue-500" />
+            <p className="mt-6 text-3xl font-semibold">Aguardando leitura biométrica...</p>
           </div>
         )
     }
@@ -204,8 +237,8 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
-            <Card className="h-[calc(100vh-12rem)]">
-              <CardContent className="flex items-center justify-center h-full">
+            <Card className="h-[calc(100vh-12rem)] flex flex-col overflow-hidden rounded-2xl p-0">
+              <CardContent className="flex flex-1 p-0">
                 {getStateIcon()}
               </CardContent>
             </Card>

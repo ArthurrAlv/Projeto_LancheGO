@@ -2,22 +2,39 @@
 
 import openpyxl
 from rest_framework.parsers import MultiPartParser, FormParser
-from datetime import datetime
+from datetime import datetime, time
 from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import Aluno, Servidor, Digital
-from .serializers import AlunoSerializer, ServidorSerializer, ServidorRegisterSerializer
+from .serializers import AlunoSerializer, ServidorSerializer, ServidorRegisterSerializer, RegistroRetiradaSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+from django.utils import timezone
+from .models import RegistroRetirada
+from .serializers import MyTokenObtainPairSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
 
 
 # ---- Views para Alunos ----
 class AlunoListCreate(generics.ListCreateAPIView):
     queryset = Aluno.objects.all()
     serializer_class = AlunoSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    
+    # --- CORREÇÃO PRINCIPAL AQUI ---
+    def get_permissions(self):
+        """
+        Define permissões diferentes para cada tipo de requisição:
+        - GET (listar alunos): Permite qualquer usuário autenticado.
+        - POST (criar aluno): Permite apenas superusuários.
+        """
+        if self.request.method == 'POST':
+            # Apenas superusuários podem criar alunos (ex: via API, sem ser pela planilha)
+            return [permissions.IsAdminUser()]
+        
+        # Qualquer usuário logado (servidor ou superuser) pode ver a lista de alunos
+        return [permissions.IsAuthenticated()]
 
 # 🔽 --- LÓGICA DE EXCLUSÃO ATUALIZADA AQUI --- 🔽
 class AlunoRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
@@ -39,10 +56,10 @@ class AlunoRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
                     {'type': 'execute.command', 'command': command}
                 )
         return super().destroy(request, *args, **kwargs)
-        
-        # Agora, prossegue com a exclusão do aluno do banco de dados
-        return super().destroy(request, *args, **kwargs)
 
+
+class MyTokenObtainPairView(TokenObtainPairView):
+    serializer_class = MyTokenObtainPairSerializer
 
 # ---- Views para Servidores ----
 class ServidorRegisterView(generics.CreateAPIView):
@@ -50,7 +67,7 @@ class ServidorRegisterView(generics.CreateAPIView):
     permission_classes = [permissions.IsAdminUser]
 
 class ServidorList(generics.ListAPIView):
-    queryset = Servidor.objects.filter(user__is_superuser=False)
+    queryset = Servidor.objects.all()
     serializer_class = ServidorSerializer
     permission_classes = [permissions.IsAdminUser]
 
@@ -100,6 +117,7 @@ class AssociateFingerprintView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
 class FingerprintLoginView(APIView):
     authentication_classes = []
     permission_classes = [permissions.AllowAny]
@@ -113,7 +131,13 @@ class FingerprintLoginView(APIView):
             digital = Digital.objects.select_related('servidor__user').get(sensor_id=sensor_id)
             if digital.servidor and digital.servidor.user:
                 user = digital.servidor.user
-                refresh = RefreshToken.for_user(user)
+                
+                # --- MUDANÇA CRÍTICA: Usando o serializer customizado ---
+                # Em vez de criar um token simples, usamos nosso serializer para
+                # criar um token completo com 'username' e 'is_superuser'.
+                serializer = MyTokenObtainPairSerializer(context={'request': request})
+                refresh = serializer.get_token(user)
+
                 return Response({
                     'refresh': str(refresh),
                     'access': str(refresh.access_token),
@@ -289,3 +313,58 @@ class AlunoUploadPlanilhaView(APIView):
 
         except Exception as e:
             return Response({"error": f"Erro grave ao abrir ou processar a planilha: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+class RegistrosDeHojeView(generics.ListAPIView):
+    serializer_class = RegistroRetiradaSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        # Esta view agora usa o 'time' correto de 'datetime'
+        hoje = timezone.localtime(timezone.now()).date()
+        agora_time = timezone.localtime(timezone.now()).time()
+        if agora_time.hour < 12:
+            periodo_inicio = timezone.make_aware(datetime.combine(hoje, time.min))
+        else:
+            periodo_inicio = timezone.make_aware(datetime.combine(hoje, time(12, 0)))
+        return RegistroRetirada.objects.filter(data_retirada__gte=periodo_inicio).order_by('-data_retirada')[:5]
+    
+
+class InitiateDeleteStudentView(APIView):
+    """ Inicia a exclusão segura de um aluno completo (registro e digitais). """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        aluno_id = kwargs.get('aluno_id')
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            'serial_worker_group',
+            {
+                'type': 'arm.action',
+                'action': {
+                    'type': 'delete_student', # Novo tipo de ação
+                    'aluno_id': aluno_id
+                }
+            }
+        )
+        return Response({"message": "Ação de exclusão de aluno iniciada. Aguardando confirmação biométrica."}, status=status.HTTP_202_ACCEPTED)
+    
+
+class InitiateDeleteServerView(APIView):
+    """ Inicia a exclusão segura de um servidor completo (registro e digitais). """
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request, *args, **kwargs):
+        servidor_id = kwargs.get('servidor_id')
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            'serial_worker_group',
+            {
+                'type': 'arm.action',
+                'action': {
+                    'type': 'delete_server', # Novo tipo de ação
+                    'servidor_id': servidor_id
+                }
+            }
+        )
+        return Response({"message": "Ação de exclusão de servidor iniciada. Aguardando confirmação biométrica."}, status=status.HTTP_202_ACCEPTED)

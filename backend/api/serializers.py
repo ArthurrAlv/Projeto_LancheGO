@@ -3,7 +3,9 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.db import transaction
-from .models import Aluno, Servidor, Digital
+from .models import Aluno, Servidor, Digital, RegistroRetirada
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
 
 # --- SERIALIZERS EXISTENTES (SEM MUDANÇAS) ---
 
@@ -25,7 +27,7 @@ class AlunoSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username'] # Removido first_name para consistência, nome_completo vem do Servidor
+        fields = ['id', 'username', 'is_superuser'] # Removido first_name para consistência, nome_completo vem do Servidor
 
 # Serializer para listar/detalhar Servidores
 class ServidorSerializer(serializers.ModelSerializer):
@@ -78,3 +80,26 @@ class ServidorRegisterSerializer(serializers.ModelSerializer):
             nome_completo=validated_data['nome_completo']
         )
         return servidor
+    
+
+class RegistroRetiradaSerializer(serializers.ModelSerializer):
+    # Para incluir o nome e a turma do aluno no resultado
+    nome_aluno = serializers.CharField(source='aluno.nome_completo', read_only=True)
+    turma_aluno = serializers.CharField(source='aluno.turma', read_only=True)
+
+    class Meta:
+        model = RegistroRetirada
+        fields = ['id', 'nome_aluno', 'turma_aluno', 'data_retirada']
+
+
+# Adicione esta nova classe no final do arquivo
+class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+
+        # Adiciona informações customizadas ao payload do token
+        token['username'] = user.username
+        token['is_superuser'] = user.is_superuser
+
+        return token

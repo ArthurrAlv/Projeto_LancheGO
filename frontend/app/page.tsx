@@ -10,9 +10,10 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { User, Lock, Fingerprint, Loader2, Eye, EyeOff } from "lucide-react"
+import { User, Lock, Fingerprint, Loader2, Eye, EyeOff, Shield } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import apiClient from "@/lib/api"
+import Link from "next/link"
 
 export default function LoginPage() {
   const [username, setUsername] = useState("")
@@ -61,6 +62,7 @@ export default function LoginPage() {
     try {
       const response = await apiClient.post("/token/fingerprint/", { sensor_id: sensorId })
       const { access } = response.data
+      login(access);
       localStorage.setItem("authToken", access)
       router.push("/dashboard")
     } catch (err) {
@@ -78,11 +80,16 @@ export default function LoginPage() {
     setIsLoading(true)
     setError("")
     try {
-      await login(username, password)
+      // 1. A página faz a chamada para a API
+      const response = await apiClient.post('/token/', { username, password })
+      const { access } = response.data
+      
+      // 2. A página entrega o token recebido para a função 'login' do AuthContext
+      login(access)
+      
       router.push("/dashboard")
     } catch (err) {
       setError("Usuário ou senha incorretos. Verifique suas credenciais.")
-      console.error("Falha no login:", err)
     } finally {
       setIsLoading(false)
     }
@@ -148,6 +155,12 @@ export default function LoginPage() {
               {isLoading ? "Entrando..." : "Entrar"}
             </Button>
           </form>
+
+          <div className="text-center">
+            <Link href="/admin" legacyBehavior>
+              <a className="text-xs text-blue-500 hover:underline">Acesso Administrativo</a>
+            </Link>
+          </div>
 
           <Separator />
 

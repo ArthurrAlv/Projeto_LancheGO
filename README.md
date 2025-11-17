@@ -17,20 +17,24 @@ Os problemas notados são:
 1.  **Regras de Permissão Incorretas:** O objetivo era implementar novas regras de segurança, QUE JÁ EXISTEM, como na exclusão em massa dos alunos, mas não nos pontos abaixo:
     * Apenas `superusers` podem cadastrar, apagar alunos ou editar(pedir digital de superuser como confirmação como na exlusão em massa). - O login dirá -
 
-* *Correções de Usabilidade*
-1.  * Corrigir sons, muito ruim sempre ter que clicar na tela para eles funcionarem. Procurar uma melhor opção.
 
-2.  * Últimas Retiradas somem ao recarregar a página. Preciso que elas funcionem como a retirada: que elas sumam apenas depois das 12 da tarde e resetem novamente as 00.
+----------
+
+
+
+
+* *Correções de Usabilidade*
+1.  * Corrigir sons, muito ruim sempre ter que clicar na tela para eles funcionarem. Procurar uma melhor opção. Não tem, talvez colocar um botão de enfeite pra clicar.
+
+- 
+
+
 
 ---
 
 * **Página Administrators:**
 
-  * Remover a forma atual de exibir o **Superuser**.
-  * Torná-lo visível novamente, mas com **marcação de “superuser”**.
-  * Qualquer alteração deve **exigir senha do superuser**.
-  * **Superuser não pode ser excluído**.
-  * implementar inserção de um novo superusuario(limite 3), mas com solicitação de senha do superuser. Ou isso não é necessario? Após implementado, tem como acessar o painel do django e fazer o processo? Criar um servidor e ir no django para marca-lo como superuser. Qual é a melhor forma?
+  * (http://127.0.0.1:8000/admin/) Tanto esse link quanto os outros (http://localhost:3000/dashboard) tem como mascarar esse nome pra outro? http://lanchego.bd/... e http://lanchego/dash...?  
 
 * **Fluxo de Adição de Servidor:**
 
@@ -40,37 +44,22 @@ Os problemas notados são:
 
 ## 🎨 Correções de Usabilidade
 
-* Muitas vezes o sistema me pede login novamente. O problema é que, quando isso acontece, ele me deixa continuar na página mas sem mostrar os dados e as vezes me mostra dados. O certo seria me desconectar e já me levar direto para a página de login, em vez de deixar a tela carregada sem nada ou com algo porém sem permissão. Segue a mesagem do terminal que ajuda você a entender o que digo:
 
-2025-10-02 20:57:16,928 WARNING  Unauthorized: /api/alunos/17/
-127.0.0.1:57275 - - [02/Oct/2025:20:57:16] "DELETE /api/alunos/17/" 401 172
-Unauthorized: /api/alunos/17/
-2025-10-02 20:57:21,846 WARNING  Unauthorized: /api/alunos/17/
-127.0.0.1:57275 - - [02/Oct/2025:20:57:21] "DELETE /api/alunos/17/" 401 172
-Unauthorized: /api/alunos/17/
-2025-10-02 20:57:25,778 WARNING  Unauthorized: /api/alunos/17/
-127.0.0.1:57275 - - [02/Oct/2025:20:57:25] "DELETE /api/alunos/17/" 401 172
-
- 
-Acho melhor que o sistema só peça login novamente quando eu fechar a página ou reiniciar o computador. Durante o uso normal, depois que eu já fiz o login, não é pra ficar desconectando sozinho.
 -----
 
+## **Correções de Futuras**
 
-* Quero que na pagina students apareça o nome da turma completa, ex: "1º Ano Eletro".
+*Implementar pequenos times de carregamento certas ações para melhorar o tempo de resposta da pagina com o dispositivo.
 
-* Ajustar a página do **Superuser**:
+****https://g.co/gemini/share/6b29d1ed8178****
 
-  * Atualmente há **duas opções de “Sair”**.
-  * Melhor solução: o **cabeçalho** deve mudar o botão “Sair” para **sair da página do Superuser**, sem confundir com o logout de servidor.
-
+***https://www.docker.com/***
 
 ---
 
 ## 🎨 Correções de Layout
 
-* Melhorar **contraste** e **destaque das cores** na página de **Distribuição de Lanches**.
-* Status do leitor parou de funcionar novamente
-* Corrigir sons, muito ruim sempre ter que clicar na tela para eles funcionarem
+
 
 ---
 
