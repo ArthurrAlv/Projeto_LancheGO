@@ -17,6 +17,11 @@ Os problemas notados são:
 1.  **Regras de Permissão Incorretas:** O objetivo era implementar novas regras de segurança, QUE JÁ EXISTEM, como na exclusão em massa dos alunos, mas não nos pontos abaixo:
     * Apenas `superusers` podem cadastrar, apagar alunos ou editar(pedir digital de superuser como confirmação como na exlusão em massa). - O login dirá -
 
+2. **Correções:** Cancelar edição deve apagar a alteração feita! 
+**Bugs:** Cadastro de digitais dos servidores não tem a exatidão de cadastro de digitais dos alunos. Cadastra no dispositivo e não no site. 
+**Melhoria:** Permitir vincular digital pra superuser no Django.
+**Melhoria:** Apagar digital de super usuário deve poder escolher "digital senha" e como segunda opção além de digital do superuser.
+**correção:** Excluir todas as digitais não pode excluir a de servidores e de superusers!
 
 ----------
 
