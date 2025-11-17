@@ -130,6 +130,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 ASGI_APPLICATION = 'lanchego_project.asgi.application'
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
+    "http://lanchego:3000",
 ]
 
 REST_FRAMEWORK = {
@@ -142,7 +143,7 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [("127.0.0.1", 6379)],
+            "hosts": [("redis", 6379)],
         },
     },
 }
@@ -150,7 +151,7 @@ CHANNEL_LAYERS = {
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://127.0.0.1:6379/1",  # Usando o banco de dados '1' do Redis para o cache
+        "LOCATION": "redis://redis:6379/1",  # <-- MUDANÇA AQUI
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         },

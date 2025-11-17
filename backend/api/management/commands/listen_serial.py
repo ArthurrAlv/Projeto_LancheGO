@@ -12,7 +12,7 @@ from api.serializers import AlunoSerializer
 from datetime import time as dtime
 from django.utils import timezone
 
-TARGET_HWID = "USB VID:PID=1A86:7523 SER= LOCATION=1-9" 
+TARGET_HWID = "USB VID:PID=1A86:7523" 
 BAUD_RATE = 115200
 ACTION_TIMEOUT = 30 # Segundos para aguardar a confirmação biométrica
 

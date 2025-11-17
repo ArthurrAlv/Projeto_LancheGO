@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 // O endereço base do nosso backend. Quando rodando localmente, será este.
-const API_URL = 'http://127.0.0.1:8000/api/';
+const API_URL = `${process.env.NEXT_PUBLIC_API_URL}/api/`;
 
 const apiClient = axios.create({
     baseURL: API_URL,
