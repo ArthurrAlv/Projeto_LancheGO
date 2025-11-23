@@ -368,3 +368,43 @@ class InitiateDeleteServerView(APIView):
             }
         )
         return Response({"message": "Ação de exclusão de servidor iniciada. Aguardando confirmação biométrica."}, status=status.HTTP_202_ACCEPTED)
+    
+class DeleteFingerprintsWithPasswordView(APIView):
+    """ 
+    Permite apagar as digitais de um servidor usando a senha do administrador logado 
+    como autorização, em vez da biometria.
+    """
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request, *args, **kwargs):
+        servidor_id = request.data.get('servidor_id')
+        password = request.data.get('password')
+        
+        if not servidor_id or not password:
+             return Response({"error": "ID do servidor e senha são obrigatórios."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 1. Valida a senha do administrador que está logado fazendo a requisição
+        if not request.user.check_password(password):
+             return Response({"error": "Senha de administrador incorreta."}, status=status.HTTP_403_FORBIDDEN)
+
+        # 2. Busca o servidor alvo e suas digitais
+        try:
+            target_server = Servidor.objects.get(pk=servidor_id)
+            digitais = list(target_server.digitais.all())
+        except Servidor.DoesNotExist:
+            return Response({"error": "Servidor alvo não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not digitais:
+             return Response({"message": "Este servidor não possui digitais para apagar."}, status=status.HTTP_200_OK)
+
+        # 3. Envia os comandos de exclusão para o hardware
+        # O hardware responderá com DELETAR_OK, o que fará o listen_serial apagar do banco.
+        channel_layer = get_channel_layer()
+        for digital in digitais:
+            command = f"DELETAR:{digital.sensor_id}"
+            async_to_sync(channel_layer.group_send)(
+                'serial_worker_group',
+                {'type': 'execute.command', 'command': command}
+            )
+            
+        return Response({"message": f"Comandos de exclusão para {len(digitais)} digitais enviados com sucesso."}, status=status.HTTP_200_OK)

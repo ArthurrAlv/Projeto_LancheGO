@@ -14,6 +14,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -74,6 +75,8 @@ export default function ServersManagementPage() {
   const [isEnrolling, setIsEnrolling] = useState(false);
   const [readerStatus, setReaderStatus] = useState<"connected" | "disconnected">("disconnected");
   const [searchTerm, setSearchTerm] = useState("");
+  const [isDeleteFingerprintsModalOpen, setIsDeleteFingerprintsModalOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
   
   const ws = useRef<WebSocket | null>(null);
   const { token, logout, user: loggedInUser, isLoading: isLoadingAuth } = useAuth();
@@ -147,8 +150,8 @@ export default function ServersManagementPage() {
             setEnrollmentStatus({ message: data.message, state: "loading" });
             break;
           case "cadastro.success":
-            if (editingServer)
-              handleAssociateFingerprint(data.sensor_id, editingServer.id);
+            if (activeServer)
+              handleAssociateFingerprint(data.sensor_id, activeServer.id);
             break;
           case "cadastro.error":
             setEnrollmentStatus({
@@ -252,7 +255,7 @@ export default function ServersManagementPage() {
       }
       fetchServers();
       setIsModalOpen(false);
-      resetForm();
+      // resetForm();
     } catch (error: any) {
       console.error("Falha ao salvar servidor:", error);
       if (error.response && error.response.data) {
@@ -376,6 +379,33 @@ export default function ServersManagementPage() {
           variant: "destructive",
         });
       }
+  };
+
+  const handleDeleteFingerprintsWithPassword = async () => {
+    if (!editingServer || !deletePassword) return;
+    
+    // Feedback inicial
+    toast({ title: "Processando...", description: "Validando senha e enviando comandos..." });
+
+    try {
+      await apiClient.post('/actions/delete-fingerprints-password/', {
+        servidor_id: editingServer.id,
+        password: deletePassword
+      });
+      
+      // Sucesso
+      toast({ title: "Sucesso", description: "Comandos de exclusão enviados ao leitor." });
+      setIsDeleteFingerprintsModalOpen(false);
+      setDeletePassword("");
+      // O fetchServers será chamado automaticamente quando o hardware confirmar a exclusão (via WebSocket)
+      
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.response?.data?.error || "Falha ao apagar com senha.",
+        variant: "destructive"
+      });
+    }
   };
 
   // --- MUDANÇA: Função de limpar leitor agora apenas INICIA a ação ---
@@ -698,39 +728,79 @@ export default function ServersManagementPage() {
                 <div className="space-y-4 pt-4 border-t">
                   <div className="flex justify-between items-center">
                     <h3 className="font-semibold">Gerenciamento de Digitais</h3>
-                    {editingServer.digitais_count > 0 && (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="destructive" size="sm">
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Apagar Digitais
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>
-                              Confirmar Exclusão
-                            </AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Tem certeza que deseja apagar TODAS as digitais de{" "}
-                              {editingServer.nome_completo}?
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() =>
-                                handleInitiateDeleteFingerprints(
-                                  editingServer.id
-                                )
-                              }
-                              className="bg-destructive hover:bg-destructive/90"
-                            >
-                              Sim, Apagar Tudo
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+{editingServer.digitais_count > 0 && (
+                      <>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => setIsDeleteFingerprintsModalOpen(true)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Apagar Digitais
+                        </Button>
+
+                        <Dialog open={isDeleteFingerprintsModalOpen} onOpenChange={setIsDeleteFingerprintsModalOpen}>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Apagar Digitais</DialogTitle>
+                              <DialogDescription>
+                                Como você deseja autorizar a exclusão das digitais de <b>{editingServer.nome_completo}</b>?
+                              </DialogDescription>
+                            </DialogHeader>
+
+                            <div className="grid gap-4 py-4">
+                              {/* Opção 1: Biometria */}
+                              <div className="flex flex-col gap-2">
+                                <Label>Opção 1: Biometria de Superusuário</Label>
+                                <Button
+                                  variant="outline"
+                                  onClick={() => {
+                                    handleInitiateDeleteFingerprints(editingServer.id);
+                                    setIsDeleteFingerprintsModalOpen(false);
+                                  }}
+                                >
+                                  <Fingerprint className="mr-2 h-4 w-4" />
+                                  Usar Digital do Admin
+                                </Button>
+                              </div>
+
+                              {/* Divisor Visual */}
+                              <div className="relative">
+                                <div className="absolute inset-0 flex items-center">
+                                  <span className="w-full border-t" />
+                                </div>
+                                <div className="relative flex justify-center text-xs uppercase">
+                                  <span className="bg-background px-2 text-muted-foreground">Ou</span>
+                                </div>
+                              </div>
+
+                              {/* Opção 2: Senha */}
+                              <div className="flex flex-col gap-2">
+                                <Label>Opção 2: Senha do Admin Logado</Label>
+                                <div className="flex gap-2">
+                                  <Input
+                                    type="password"
+                                    placeholder="Sua senha de admin"
+                                    value={deletePassword}
+                                    onChange={(e) => setDeletePassword(e.target.value)}
+                                  />
+                                  <Button
+                                    variant="destructive"
+                                    onClick={handleDeleteFingerprintsWithPassword}
+                                    disabled={!deletePassword}
+                                  >
+                                    Apagar
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+
+                            <DialogFooter>
+                              <Button variant="ghost" onClick={() => setIsDeleteFingerprintsModalOpen(false)}>Cancelar</Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      </>
                     )}
                   </div>
 

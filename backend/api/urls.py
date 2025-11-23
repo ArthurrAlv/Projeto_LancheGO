@@ -10,7 +10,7 @@ from .views import (
     AssociateFingerprintView, FingerprintLoginView,
     InitiateDeleteByTurmaView, InitiateClearAllView,
     InitiateDeleteStudentFingerprintsView, InitiateDeleteServerFingerprintsView, # Novas views
-    RegistrosDeHojeView, InitiateDeleteStudentView, InitiateDeleteServerView 
+    RegistrosDeHojeView, InitiateDeleteStudentView, InitiateDeleteServerView, DeleteFingerprintsWithPasswordView
 )
 
 from rest_framework_simplejwt.views import TokenRefreshView
@@ -46,6 +46,8 @@ urlpatterns = [
     # --- Rota: confirmação de exclusão de servidor
     path('actions/initiate-delete-server/<int:servidor_id>/', views.InitiateDeleteServerView.as_view(), name='initiate-delete-server'),
 
+    # --- Rota: confirmação exclusão com senha
+    path('actions/delete-fingerprints-password/', views.DeleteFingerprintsWithPasswordView.as_view(), name='delete-fingerprints-password'),
 
     path('registros/hoje/', views.RegistrosDeHojeView.as_view(), name='registros-hoje'),
 ]

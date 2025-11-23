@@ -19,3 +19,12 @@ python manage.py listen_serial
 
 
 npm install concurrently
+
+
+----------
+
+source venv/bin/activate
+
+npm run dev
+
+python manage.py listen_serial 
